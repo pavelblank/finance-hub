@@ -1,0 +1,642 @@
+{% extends "base.html" %}
+{% block title %} — Transactions{% endblock %}
+{% block topbar_title %}Transactions{% endblock %}
+
+{% block topbar_extra %}
+<button class="topbar-btn" onclick="openAddModal()">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>
+  Add
+</button>
+{% endblock %}
+
+{% block fab_action %}
+openAddModal()
+{% endblock %}
+
+{% block head %}
+<style>
+.filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.filter-bar input,.filter-bar select{width:auto;padding:8px 12px;font-size:.8rem;min-height:36px}
+.type-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block}
+.td-actions{display:flex;gap:4px;opacity:0;transition:var(--transition)}
+tr:hover .td-actions{opacity:1}
+.tx-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;transition:var(--transition);margin-bottom:8px;backdrop-filter:blur(12px)}
+.tx-card:hover{border-color:var(--border-glow);transform:translateX(4px);box-shadow:var(--shadow-glow)}
+.tx-card:active{transform:scale(.98)}
+.tx-card-amount{font-size:1.1rem;font-weight:700;letter-spacing:-.02em}
+.tx-card-meta{font-size:.72rem;color:var(--text-muted);margin-top:2px}
+.tx-card-notes{font-size:.72rem;color:var(--text-secondary);margin-top:6px;padding:6px 8px;background:rgba(255,255,255,.03);border-radius:var(--radius-xs);border-left:2px solid var(--accent)}
+.recurring-toggle{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--border-light);border-radius:var(--radius-sm);cursor:pointer;transition:var(--transition)}
+.recurring-toggle:hover{background:rgba(124,117,245,.08)}
+.recurring-toggle input[type=checkbox]{display:none}
+.recurring-toggle .toggle-track{width:36px;height:20px;border-radius:10px;background:var(--border);position:relative;transition:var(--transition);flex-shrink:0}
+.recurring-toggle .toggle-thumb{width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:var(--transition);box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.recurring-toggle input:checked+.toggle-track{background:var(--primary)}
+.recurring-toggle input:checked+.toggle-track .toggle-thumb{left:18px}
+.recurring-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:var(--radius-pill);font-size:.6rem;font-weight:700;background:rgba(124,117,245,.12);color:var(--primary)}
+.recurring-section{margin-top:12px;padding:16px;border:1px dashed rgba(124,117,245,.3);border-radius:var(--radius-sm);background:rgba(124,117,245,.03)}
+.recurring-section.hidden{display:none}
+.recurring-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--border-light);transition:var(--transition)}
+.recurring-item:last-child{border-bottom:none}
+.recurring-item:hover{background:rgba(124,117,245,.04);border-radius:var(--radius-xs)}
+.mobile-filters{display:none}
+.data-table tr{transition:background .2s}
+.data-table tbody tr{animation:fadeUp .3s ease-out both}
+.data-table tbody tr:nth-child(1){animation-delay:.02s}
+.data-table tbody tr:nth-child(2){animation-delay:.04s}
+.data-table tbody tr:nth-child(3){animation-delay:.06s}
+.data-table tbody tr:nth-child(4){animation-delay:.08s}
+.data-table tbody tr:nth-child(5){animation-delay:.1s}
+.data-table tbody tr:nth-child(6){animation-delay:.12s}
+.data-table tbody tr:nth-child(7){animation-delay:.14s}
+.data-table tbody tr:nth-child(8){animation-delay:.16s}
+.data-table tbody tr:nth-child(9){animation-delay:.18s}
+.data-table tbody tr:nth-child(10){animation-delay:.2s}
+@media(max-width:768px){
+  .filter-bar{display:none}
+  .mobile-filters{display:flex;gap:8px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .mobile-filters::-webkit-scrollbar{display:none}
+  .mobile-filter-chip{flex-shrink:0;padding:6px 14px;border-radius:var(--radius-pill);background:var(--surface);border:1px solid var(--border);color:var(--text-secondary);font-size:.75rem;font-weight:600;cursor:pointer;transition:var(--transition);white-space:nowrap}
+  .mobile-filter-chip.active{background:var(--accent-dim);border-color:rgba(124,117,245,.3);color:var(--accent-bright);box-shadow:0 0 12px rgba(124,117,245,.15)}
+  .mobile-filter-chip:hover{border-color:var(--accent);color:var(--accent-bright)}
+  .tx-list{display:flex;flex-direction:column;gap:8px}
+  .data-table{display:none}
+}
+@media(min-width:769px){
+  .tx-list{display:none}
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+  <!-- Big Add Button -->
+  <button onclick="openAddModal()" style="width:100%;margin-bottom:16px;padding:14px 20px;background:var(--primary);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-size:.95rem;font-weight:700;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 3px 10px rgba(21,101,192,.3);transition:var(--transition)" onmouseenter="this.style.background='var(--primary-light)'" onmouseleave="this.style.background='var(--primary)'">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>
+    Add New Transaction
+  </button>
+
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h1 style="font-size:1.3rem;font-weight:800;letter-spacing:-.03em;color:var(--text)">Transactions</h1>
+      <p class="text-secondary text-xs mt-1" id="tx-count">{{ transactions|length }} transactions</p>
+    </div>
+    <div class="flex gap-2">
+      <a href="/settings" class="btn btn-ghost btn-sm" onclick="localStorage.setItem('fin_export_tab','1')">Export</a>
+    </div>
+  </div>
+
+  <!-- Mobile Filters (Horizontal scroll chips) -->
+  <div class="mobile-filters animate-in-2">
+    <button class="mobile-filter-chip active" onclick="mobileFilter('all',this)">All</button>
+    <button class="mobile-filter-chip" onclick="mobileFilter('income',this)">💰 Income</button>
+    <button class="mobile-filter-chip" onclick="mobileFilter('expense',this)">💸 Expenses</button>
+    <button class="mobile-filter-chip" onclick="mobileFilter('this-month',this)">📅 This Month</button>
+  </div>
+
+  <!-- Desktop Filters -->
+  <div class="filter-bar animate-in-2">
+    <input type="text" id="f-search" placeholder="Search…" oninput="filterTable()" style="flex:1;min-width:180px">
+    <select id="f-type" onchange="filterTable()" style="min-width:130px">
+      <option value="">All Types</option>
+      <option value="income">Income</option>
+      <option value="expense">Expense</option>
+    </select>
+    <input type="month" id="f-month" onchange="filterTable()" style="min-width:150px" placeholder="All Dates">
+    <select id="f-cat" onchange="filterTable()" style="min-width:150px">
+      <option value="">All Categories</option>
+      {% for c in categories %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Clear</button>
+  </div>
+
+  <!-- Summary strip -->
+  <div class="grid-3 animate-in-2 mb-4" id="tx-summary">
+    <div class="card" style="padding:14px 18px">
+      <div style="font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em">Filtered Income</div>
+      <div id="sum-income" style="font-size:1.25rem;font-weight:800;color:var(--green)">A$ 0.00</div>
+    </div>
+    <div class="card" style="padding:14px 18px">
+      <div style="font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em">Filtered Expenses</div>
+      <div id="sum-expense" style="font-size:1.25rem;font-weight:800;color:var(--red)">A$ 0.00</div>
+    </div>
+    <div class="card" style="padding:14px 18px">
+      <div style="font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em">Net</div>
+      <div id="sum-net" style="font-size:1.25rem;font-weight:800;color:#fff">A$ 0.00</div>
+    </div>
+  </div>
+
+  <!-- Recurring Summary Box -->
+  {% if recurring %}
+  {% set ns_rec = namespace(income=0, expense=0) %}
+  {% for r in recurring %}
+    {% if r.currency == 'BDT' %}{% set r_aud = r.amount * fx_bdt_aud %}
+    {% elif r.currency == 'USD' %}{% set r_aud = r.amount * fx_usd_aud %}
+    {% else %}{% set r_aud = r.amount %}{% endif %}
+    {% if r.type == 'income' %}{% set ns_rec.income = ns_rec.income + r_aud %}
+    {% else %}{% set ns_rec.expense = ns_rec.expense + r_aud %}{% endif %}
+  {% endfor %}
+  <div class="grid-2 animate-in-2 mb-4">
+    <div class="card" style="padding:14px 18px;border-left:3px solid var(--green)">
+      <div style="font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em">🔄 Recurring Income / month</div>
+      <div style="font-size:1.25rem;font-weight:800;color:var(--green);margin-top:4px">+A$ {{ '{:,.2f}'.format(ns_rec.income) }}</div>
+    </div>
+    <div class="card" style="padding:14px 18px;border-left:3px solid var(--red)">
+      <div style="font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em">🔄 Recurring Cost / month</div>
+      <div style="font-size:1.25rem;font-weight:800;color:var(--red);margin-top:4px">−A$ {{ '{:,.2f}'.format(ns_rec.expense) }}</div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Recurring Templates -->
+  {% if recurring %}
+  <div class="card animate-in-2 mb-4" style="padding:16px 20px">
+    <div class="card-header">
+      <span class="card-title" style="display:flex;align-items:center;gap:6px">
+        <span class="recurring-badge" style="font-size:.7rem;padding:3px 8px">🔄</span> Recurring Transactions
+      </span>
+      <span style="font-size:.72rem;color:var(--text-muted)">{{ recurring|length }} active</span>
+    </div>
+    <div style="margin-top:10px">
+      {% for r in recurring %}
+      <div class="recurring-item">
+        <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+          <div style="width:32px;height:32px;border-radius:var(--radius-xs);display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;background:{% if r.type=='income' %}rgba(0,201,160,.1){% else %}rgba(255,96,144,.1){% endif %}">
+            {% if r.category == 'Rent' %}🏠{% elif r.category == 'Utilities' %}💡{% elif r.category == 'Subscriptions' %}📱{% elif r.category == 'Insurance' %}🛡️{% elif r.category == 'Property Maintenance' %}🔧{% elif r.category == 'Property Repair' %}🛠️{% else %}💰{% endif %}
+          </div>
+          <div style="min-width:0">
+            <div style="font-size:.82rem;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.description or r.category }}</div>
+            <div style="font-size:.68rem;color:var(--text-muted)">
+              {{ r.frequency }} · {{ r.category }} · Next: {{ r.next_date }}
+              {% if r.end_date %} · Ends: {{ r.end_date }}{% endif %}
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="{% if r.type=='income' %}amount-income{% else %}amount-expense{% endif %}" style="font-size:.88rem;font-weight:700;white-space:nowrap">
+            {% if r.type=='income' %}+{% else %}−{% endif %}${{ '{:,.2f}'.format(r.amount) }}
+          </span>
+          <button class="btn btn-ghost btn-sm btn-icon" onclick="deleteRecurring({{ r.id }})" title="Delete">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+          </button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Desktop Table -->
+  <div class="card animate-in-3" style="padding:0;overflow:hidden">
+    <table class="data-table" id="tx-table">
+      <thead>
+        <tr>
+          <th>Date</th><th>Type</th><th>Category</th><th>Description</th>
+          <th style="text-align:right">Amount</th><th>Currency</th><th>Account</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="tx-tbody">
+        {% for t in transactions %}
+        <tr data-id="{{ t.id }}" data-type="{{ t.type }}" data-cat="{{ t.category }}"
+            data-date="{{ t.date }}" data-amount="{{ t.amount }}" data-currency="{{ t.currency }}"
+            data-desc="{{ t.description }}" data-account="{{ t.account }}" data-notes="{{ t.notes }}"
+            data-recurring-id="{{ t.recurring_id or '' }}">
+          <td>{{ t.date }}</td>
+          <td>
+            <span class="badge {% if t.type=='income' %}badge-green{% else %}badge-red{% endif %}">
+              {% if t.type=='income' %}↑{% else %}↓{% endif %} {{ t.type }}
+            </span>
+          </td>
+          <td>{{ t.category }}</td>
+          <td style="color:var(--text);max-width:200px" class="truncate">{{ t.description or '—' }}</td>
+          {% if t.currency == 'BDT' %}{% set t_aud = t.amount * fx_bdt_aud %}
+          {% elif t.currency == 'USD' %}{% set t_aud = t.amount * fx_usd_aud %}
+          {% else %}{% set t_aud = t.amount %}{% endif %}
+          <td style="text-align:right" class="{% if t.type=='income' %}amount-income{% else %}amount-expense{% endif %}">
+            {% if t.type=='income' %}+{% else %}−{% endif %}A${{ '{:,.2f}'.format(t_aud) }}
+            {% if t.currency != 'AUD' %}<div style="font-size:.6rem;color:var(--text-muted)">{{ t.currency }} {{ '{:,.0f}'.format(t.amount) }}</div>{% endif %}
+          </td>
+          <td><span class="badge badge-gray" style="font-size:.62rem">{{ t.currency }}</span></td>
+          <td class="text-muted text-sm">{{ t.account or '—' }}</td>
+          <td>
+            <div class="td-actions">
+              <button class="btn btn-ghost btn-sm btn-icon" onclick="editTx(this.closest('tr'))" title="Edit">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+              <button class="btn btn-danger btn-sm btn-icon" onclick="deleteTx({{ t.id }},this.closest('tr'))" title="Delete">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">No transactions yet. <a href="#" onclick="openAddModal();return false" style="color:var(--accent-bright)">Add one!</a></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile Card List -->
+  <div class="tx-list animate-in-3" id="tx-mobile-list">
+    {% for t in transactions %}
+    <div class="tx-card" data-id="{{ t.id }}" data-type="{{ t.type }}" data-cat="{{ t.category }}"
+         data-date="{{ t.date }}" data-amount="{{ t.amount }}" data-currency="{{ t.currency }}"
+         data-desc="{{ t.description }}" data-account="{{ t.account }}" data-notes="{{ t.notes }}"
+         data-recurring-id="{{ t.recurring_id or '' }}"
+         onclick="editTxFast(this)">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2" style="flex:1;min-width:0">
+          <div style="width:36px;height:36px;border-radius:var(--radius-xs);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;background:{% if t.type=='income' %}rgba(0,201,160,.1){% else %}rgba(255,96,144,.1){% endif %}">
+            {% if t.category == 'Rent' %}🏠{% elif t.category == 'Utilities' %}💡{% elif t.category == 'Internet' %}🌐{% elif t.category == 'Health' %}💪{% elif t.category == 'Insurance' %}🛡️{% elif t.category == 'Car' %}🚗{% elif t.category == 'Donation' %}❤️{% elif t.category == 'Subscriptions' %}📱{% else %}💰{% endif %}
+          </div>
+          <div style="min-width:0">
+            <div style="font-size:.85rem;color:var(--text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.description or t.category }}</div>
+            <div class="tx-card-meta">{{ t.category }} · {{ t.date }}</div>
+          </div>
+        </div>
+        {% if t.currency == 'BDT' %}{% set tm_aud = t.amount * fx_bdt_aud %}
+        {% elif t.currency == 'USD' %}{% set tm_aud = t.amount * fx_usd_aud %}
+        {% else %}{% set tm_aud = t.amount %}{% endif %}
+        <div class="tx-card-amount {% if t.type=='income' %}amount-income{% else %}amount-expense{% endif %}" style="flex-shrink:0;text-align:right">
+          {% if t.type=='income' %}+{% else %}−{% endif %}A${{ '{:,.2f}'.format(tm_aud) }}
+          {% if t.currency != 'AUD' %}<div style="font-size:.6rem;color:var(--text-muted)">{{ t.currency }} {{ '{:,.0f}'.format(t.amount) }}</div>{% endif %}
+        </div>
+      </div>
+      {% if t.notes %}
+      <div class="tx-card-notes">📝 {{ t.notes }}</div>
+      {% endif %}
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:40px;color:var(--text-muted)">No transactions yet. <a href="#" onclick="openAddModal();return false" style="color:var(--accent-bright)">Add one!</a></div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Add/Edit Modal (Bottom sheet on mobile) -->
+<div id="tx-modal-overlay" style="position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.65);backdrop-filter:blur(8px);display:none;align-items:flex-end;justify-content:center;padding:0">
+  <div class="modal" style="max-width:480px;width:100%">
+    <div class="modal-handle"></div>
+    <h3 id="tx-modal-title">Add Transaction</h3>
+    <div style="margin-top:16px;display:flex;flex-direction:column;gap:12px">
+      <div class="grid-2">
+        <div>
+          <label>Date</label>
+          <input type="date" id="tx-date">
+        </div>
+        <div>
+          <label>Type</label>
+          <select id="tx-type">
+            <option value="expense">Expense</option>
+            <option value="income">Income</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div>
+          <label>Category</label>
+          <div style="position:relative">
+            <input type="text" id="tx-cat" list="cat-list" placeholder="Select or type new…" autocomplete="off"
+              oninput="filterCatList()" onfocus="filterCatList()">
+            <datalist id="cat-list"></datalist>
+          </div>
+          <div id="cat-new-hint" style="font-size:.7rem;color:var(--accent);margin-top:3px;display:none">
+            ✨ New category — will be saved automatically
+          </div>
+        </div>
+        <div>
+          <label>Amount</label>
+          <input type="number" id="tx-amount" step="0.01" min="0" placeholder="0.00">
+        </div>
+      </div>
+      <div>
+        <label>Description</label>
+        <input type="text" id="tx-desc" placeholder="Optional description">
+      </div>
+      <div class="grid-2">
+        <div>
+          <label>Currency</label>
+          <select id="tx-currency">
+            <option value="AUD">AUD</option>
+            <option value="USD">USD</option>
+            <option value="BDT">BDT</option>
+            <option value="GBP">GBP</option>
+            <option value="EUR">EUR</option>
+          </select>
+        </div>
+        <div>
+          <label>Account</label>
+          <input type="text" id="tx-account" placeholder="e.g. CommBank">
+        </div>
+      </div>
+      <div>
+        <label>Person</label>
+        <select id="tx-user">
+          {% for u in users %}<option value="{{ u.id }}"{% if u.id == current_uid %} selected{% endif %}>{{ u.emoji }} {{ u.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>Notes</label>
+        <textarea id="tx-notes" rows="2" placeholder="Add notes about this transaction…" style="resize:vertical"></textarea>
+      </div>
+      <!-- Recurring Toggle -->
+      <div class="recurring-toggle" onclick="toggleRecurring()">
+        <input type="checkbox" id="tx-recurring">
+        <div class="toggle-track"><div class="toggle-thumb"></div></div>
+        <div>
+          <div style="font-size:.82rem;font-weight:600;color:var(--text)">Recurring</div>
+          <div style="font-size:.68rem;color:var(--text-muted)">Auto-create this transaction on schedule</div>
+        </div>
+      </div>
+      <!-- Recurring Options (hidden by default) -->
+      <div id="recurring-options" class="recurring-section hidden">
+        <div class="grid-2">
+          <div>
+            <label>Frequency</label>
+            <select id="tx-frequency">
+              <option value="weekly">Weekly</option>
+              <option value="monthly" selected>Monthly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </div>
+          <div>
+            <label>Start Date</label>
+            <input type="date" id="tx-recur-start">
+          </div>
+        </div>
+        <div style="margin-top:10px">
+          <label>End Date <span style="font-size:.68rem;color:var(--text-muted)">(optional — leave blank for ongoing)</span></label>
+          <input type="date" id="tx-recur-end">
+        </div>
+        <div style="margin-top:8px;padding:8px 10px;background:rgba(124,117,245,.06);border-radius:var(--radius-xs);font-size:.72rem;color:var(--text-secondary)">
+          <span id="recur-hint">Monthly — next occurrence will be calculated from today</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeTxModal()">Cancel</button>
+      <button class="btn btn-primary" id="tx-save-btn" onclick="saveTx()">Save Transaction</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _editId = null;
+let _recurringId = null;
+let _allCats = [];
+let _isRecurring = false;
+
+document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
+document.getElementById('tx-recur-start').value = new Date().toISOString().split('T')[0];
+
+async function loadCatOptions(){
+  const d = await fetch('/api/categories').then(r=>r.json());
+  if(d.ok) _allCats = d.data;
+  filterCatList();
+}
+
+function filterCatList(){
+  const type = document.getElementById('tx-type').value;
+  const typed = (document.getElementById('tx-cat').value||'').trim().toLowerCase();
+  const dl = document.getElementById('cat-list');
+  const relevant = _allCats.filter(c => c.type === type);
+  dl.innerHTML = relevant.map(c=>`<option value="${c.name}">${c.icon ? c.icon+' ' : ''}${c.name}</option>`).join('');
+  const known = relevant.map(c=>c.name.toLowerCase());
+  const hintEl = document.getElementById('cat-new-hint');
+  if(typed && !known.includes(typed)){ hintEl.style.display = 'block'; }
+  else { hintEl.style.display = 'none'; }
+}
+
+document.getElementById('tx-type').addEventListener('change', filterCatList);
+loadCatOptions();
+
+function openAddModal(){
+  _editId = null;
+  _recurringId = null;
+  _isRecurring = false;
+  document.getElementById('tx-modal-title').textContent = 'Add Transaction';
+  document.getElementById('tx-save-btn').textContent = 'Save Transaction';
+  document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('tx-type').value = 'expense';
+  document.getElementById('tx-cat').value = '';
+  document.getElementById('tx-amount').value = '';
+  document.getElementById('tx-desc').value = '';
+  document.getElementById('tx-currency').value = 'AUD';
+  document.getElementById('tx-account').value = '';
+  document.getElementById('tx-notes').value = '';
+  document.getElementById('tx-recurring').checked = false;
+  document.getElementById('recurring-options').classList.add('hidden');
+  document.getElementById('tx-frequency').value = 'monthly';
+  document.getElementById('tx-recur-start').value = new Date().toISOString().split('T')[0];
+  document.getElementById('tx-recur-end').value = '';
+  document.getElementById('cat-new-hint').style.display = 'none';
+  document.getElementById('tx-modal-overlay').style.display='flex';
+  filterCatList();
+  setTimeout(()=>document.getElementById('tx-cat').focus(),80);
+}
+
+function editTx(row){
+  _editId = parseInt(row.dataset.id);
+  _recurringId = row.dataset.recurringId ? parseInt(row.dataset.recurringId) : null;
+  _isRecurring = false;
+  document.getElementById('tx-recurring').checked = false;
+  document.getElementById('recurring-options').classList.add('hidden');
+  document.getElementById('tx-modal-title').textContent = 'Edit Transaction';
+  document.getElementById('tx-save-btn').textContent = 'Update Transaction';
+  document.getElementById('tx-date').value = row.dataset.date;
+  document.getElementById('tx-type').value = row.dataset.type;
+  document.getElementById('tx-cat').value = row.dataset.cat;
+  document.getElementById('tx-amount').value = row.dataset.amount;
+  document.getElementById('tx-desc').value = row.dataset.desc;
+  document.getElementById('tx-currency').value = row.dataset.currency;
+  document.getElementById('tx-account').value = row.dataset.account;
+  document.getElementById('tx-notes').value = row.dataset.notes;
+  document.getElementById('tx-modal-overlay').style.display='flex';
+}
+
+function editTxFast(card){
+  _editId = parseInt(card.dataset.id);
+  _recurringId = card.dataset.recurringId ? parseInt(card.dataset.recurringId) : null;
+  _isRecurring = false;
+  document.getElementById('tx-recurring').checked = false;
+  document.getElementById('recurring-options').classList.add('hidden');
+  document.getElementById('tx-modal-title').textContent = 'Edit Transaction';
+  document.getElementById('tx-save-btn').textContent = 'Update Transaction';
+  document.getElementById('tx-date').value = card.dataset.date;
+  document.getElementById('tx-type').value = card.dataset.type;
+  document.getElementById('tx-cat').value = card.dataset.cat;
+  document.getElementById('tx-amount').value = card.dataset.amount;
+  document.getElementById('tx-desc').value = card.dataset.desc;
+  document.getElementById('tx-currency').value = card.dataset.currency;
+  document.getElementById('tx-account').value = card.dataset.account;
+  document.getElementById('tx-notes').value = card.dataset.notes;
+  document.getElementById('tx-modal-overlay').style.display='flex';
+}
+
+function closeTxModal(){ document.getElementById('tx-modal-overlay').style.display='none'; _isRecurring = false; _recurringId = null; }
+document.getElementById('tx-modal-overlay').addEventListener('click', e=>{if(e.target===e.currentTarget)closeTxModal()});
+document.addEventListener('keydown', e=>{if(e.key==='Escape')closeTxModal()});
+
+function toggleRecurring(){
+  _isRecurring = !_isRecurring;
+  document.getElementById('tx-recurring').checked = _isRecurring;
+  document.getElementById('recurring-options').classList.toggle('hidden', !_isRecurring);
+  updateRecurHint();
+}
+
+document.getElementById('tx-frequency').addEventListener('change', updateRecurHint);
+
+function updateRecurHint(){
+  const freq = document.getElementById('tx-frequency').value;
+  const labels = {weekly:'Weekly — every 7 days', monthly:'Monthly — same date each month', yearly:'Yearly — same date each year'};
+  document.getElementById('recur-hint').textContent = labels[freq] + ' — next occurrence will be calculated from today';
+}
+
+async function deleteRecurring(id){
+  showModal('Delete Recurring?','<p class="text-secondary text-sm" style="margin:0">This will stop future transactions from being created.</p>',
+    [{label:'Cancel',class:'btn-ghost'},{label:'Delete',class:'btn-danger',onclick:async()=>{
+      const d = await fetch(`/api/recurring/${id}`,{method:'DELETE'}).then(r=>r.json());
+      if(d.ok){showToast('Recurring deleted','success','🗑️');setTimeout(()=>location.reload(),500)}
+      else showToast(d.error,'error','✗');
+    }}]);
+}
+
+async function saveTx(){
+  const txUser = document.getElementById('tx-user');
+  const body = {
+    date: document.getElementById('tx-date').value,
+    type: document.getElementById('tx-type').value,
+    category: document.getElementById('tx-cat').value.trim(),
+    amount: document.getElementById('tx-amount').value,
+    description: document.getElementById('tx-desc').value.trim(),
+    currency: document.getElementById('tx-currency').value,
+    account: document.getElementById('tx-account').value.trim(),
+    notes: document.getElementById('tx-notes').value.trim(),
+    user_id: txUser ? parseInt(txUser.value) : null,
+  };
+  if(!body.date||!body.category||!body.amount){showToast('Please fill in date, category, and amount','error','✗');return}
+
+  const btn = document.getElementById('tx-save-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Saving…';
+
+  try{
+    // Auto-create category if new
+    const knownNames = _allCats.filter(c=>c.type===body.type).map(c=>c.name.toLowerCase());
+    if(body.category && !knownNames.includes(body.category.toLowerCase())){
+      const cr = await fetch('/api/categories/ensure',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({name: body.category, type: body.type})
+      }).then(r=>r.json());
+      if(cr.ok){ _allCats.push(cr.data); }
+    }
+
+    if(_isRecurring){
+      // Save as recurring template — update existing if editing, create new otherwise
+      const recurBody = {
+        ...body,
+        frequency: document.getElementById('tx-frequency').value,
+        start_date: document.getElementById('tx-recur-start').value || body.date,
+        end_date: document.getElementById('tx-recur-end').value || null,
+      };
+      const recurUrl = _recurringId ? `/api/recurring/${_recurringId}` : '/api/recurring';
+      const recurMethod = _recurringId ? 'PUT' : 'POST';
+      const d = await fetch(recurUrl,{method:recurMethod,headers:{'Content-Type':'application/json'},body:JSON.stringify(recurBody)}).then(r=>r.json());
+      if(d.ok){ showToast(_recurringId?'Recurring updated!':'Recurring transaction saved!','success','🔄'); closeTxModal(); setTimeout(()=>location.reload(),500); }
+      else showToast(d.error||'Failed','error','✗');
+    } else {
+      // Save as regular transaction
+      const url = _editId ? `/api/transactions/${_editId}` : '/api/transactions';
+      const method = _editId ? 'PUT' : 'POST';
+      const d = await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());
+      if(d.ok){ showToast(_editId?'Updated!':'Transaction added!','success','✓'); closeTxModal(); setTimeout(()=>location.reload(),500); }
+      else showToast(d.error||'Failed','error','✗');
+    }
+  }catch(e){showToast('Network error','error','✗')}
+  btn.disabled=false;btn.textContent=_editId?'Update Transaction':'Save Transaction';
+}
+
+function deleteTx(id, row){
+  showModal('Delete Transaction?','<p class="text-secondary text-sm" style="margin:0">This cannot be undone.</p>',
+    [{label:'Cancel',class:'btn-ghost'},{label:'Delete',class:'btn-danger',onclick:async()=>{
+      const d = await fetch(`/api/transactions/${id}`,{method:'DELETE'}).then(r=>r.json());
+      if(d.ok){row.remove();updateSummary();showToast('Deleted','success','🗑️')}
+      else showToast(d.error,'error','✗');
+    }}]);
+}
+
+function mobileFilter(type, chip){
+  document.querySelectorAll('.mobile-filter-chip').forEach(c=>c.classList.remove('active'));
+  chip.classList.add('active');
+  const now = new Date();
+  const thisMonth = now.toISOString().slice(0,7);
+  
+  document.getElementById('f-type').value = (type==='income'||type==='expense') ? type : '';
+  document.getElementById('f-month').value = (type==='this-month') ? thisMonth : '';
+  filterTable();
+}
+
+const _FX_USD_AUD = {{ fx_usd_aud }};
+const _FX_BDT_AUD = {{ fx_bdt_aud }};
+function _toAUD(amount, currency){
+  if(currency==='USD') return amount * _FX_USD_AUD;
+  if(currency==='BDT') return amount * _FX_BDT_AUD;
+  return amount;
+}
+
+function filterTable(){
+  const q = document.getElementById('f-search').value.toLowerCase();
+  const t = document.getElementById('f-type').value;
+  const m = document.getElementById('f-month').value;
+  const c = document.getElementById('f-cat').value;
+  let inc=0, exp=0, count=0;
+
+  // Desktop table
+  document.querySelectorAll('#tx-tbody tr[data-id]').forEach(row=>{
+    const match =
+      (!q || row.textContent.toLowerCase().includes(q)) &&
+      (!t || row.dataset.type===t) &&
+      (!m || row.dataset.date.startsWith(m)) &&
+      (!c || row.dataset.cat===c);
+    row.style.display = match ? '' : 'none';
+    if(match){
+      count++;
+      const aud = _toAUD(parseFloat(row.dataset.amount||0), row.dataset.currency||'AUD');
+      if(row.dataset.type==='income') inc+=aud;
+      else exp+=aud;
+    }
+  });
+
+  // Mobile cards
+  document.querySelectorAll('.tx-card[data-id]').forEach(card=>{
+    const match =
+      (!q || card.textContent.toLowerCase().includes(q)) &&
+      (!t || card.dataset.type===t) &&
+      (!m || card.dataset.date.startsWith(m)) &&
+      (!c || card.dataset.cat===c);
+    card.style.display = match ? '' : 'none';
+  });
+
+  document.getElementById('sum-income').textContent  = 'A$ '+inc.toLocaleString('en-AU',{minimumFractionDigits:2});
+  document.getElementById('sum-expense').textContent = 'A$ '+exp.toLocaleString('en-AU',{minimumFractionDigits:2});
+  const net = inc-exp;
+  const netEl = document.getElementById('sum-net');
+  netEl.textContent = (net>=0?'+':'')+'A$ '+Math.abs(net).toLocaleString('en-AU',{minimumFractionDigits:2});
+  netEl.style.color = net>=0?'var(--green)':'var(--red)';
+  document.getElementById('tx-count').textContent = count+' transactions';
+}
+
+function clearFilters(){
+  document.getElementById('f-search').value='';
+  document.getElementById('f-type').value='';
+  document.getElementById('f-month').value='';
+  document.getElementById('f-cat').value='';
+  document.querySelectorAll('.mobile-filter-chip').forEach((c,i)=>{c.classList.toggle('active',i===0)});
+  filterTable();
+}
+
+function updateSummary(){ filterTable(); }
+
+filterTable();
+</script>
+{% endblock %}

@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %} — AI Assistant{% endblock %}
+{% block topbar_title %}AI Assistant{% endblock %}
+
+{% block head %}
+<style>
+.ai-page{display:flex;flex-direction:column;height:calc(100vh - 42px);padding:0!important}
+.ai-wrap{flex:1;display:flex;flex-direction:column;max-width:860px;margin:0 auto;width:100%;padding:0 20px;gap:0;overflow:hidden}
+.ai-header{padding:16px 0 12px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.chat-area{flex:1;overflow-y:auto;padding:16px 0;display:flex;flex-direction:column;gap:12px}
+.chat-input-bar{padding:12px 0 16px;flex-shrink:0}
+.chat-input-wrap{display:flex;gap:8px;align-items:flex-end;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;transition:var(--transition)}
+.chat-input-wrap:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,117,245,.1)}
+#chat-input{border:none;background:transparent;resize:none;font-size:.85rem;line-height:1.6;max-height:120px;overflow-y:auto;flex:1;outline:none;color:var(--text);font-family:inherit;padding:0}
+.suggestion-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.chip{padding:5px 12px;border-radius:var(--radius-pill);font-size:.73rem;font-weight:500;background:rgba(124,117,245,.08);border:1px solid rgba(124,117,245,.18);color:var(--text-secondary);cursor:pointer;transition:var(--transition);user-select:none}
+.chip:hover{background:rgba(124,117,245,.16);color:var(--accent-bright);border-color:var(--accent)}
+.chip:active{transform:scale(.95)}
+.welcome-card{background:linear-gradient(135deg,rgba(124,117,245,.08) 0%,rgba(0,201,160,.05) 100%);border:1px solid rgba(124,117,245,.15);border-radius:var(--radius-sm);padding:20px;margin-bottom:8px}
+.welcome-card h2{font-size:1.1rem;font-weight:800;color:#fff;margin-bottom:6px;letter-spacing:-.02em}
+.welcome-card p{font-size:.8rem;color:var(--text-secondary);line-height:1.6;margin:0}
+.provider-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:var(--radius-pill);font-size:.65rem;font-weight:600;background:rgba(0,201,160,.1);color:var(--accent2);border:1px solid rgba(0,201,160,.2)}
+.provider-badge.offline{background:rgba(255,96,144,.1);color:var(--accent3);border-color:rgba(255,96,144,.2)}
+.msg-ai table{width:100%;border-collapse:collapse;margin:8px 0;font-size:.8rem}
+.msg-ai th{text-align:left;padding:6px 10px;border-bottom:1px solid var(--border);color:var(--text-muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em}
+.msg-ai td{padding:6px 10px;border-bottom:1px solid rgba(255,255,255,.03)}
+.typing-dots{display:inline-flex;gap:4px;padding:4px 0}
+.typing-dots span{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:typingBounce 1.2s ease-in-out infinite}
+.typing-dots span:nth-child(2){animation-delay:.15s}
+.typing-dots span:nth-child(3){animation-delay:.3s}
+@keyframes typingBounce{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-6px);opacity:1}}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ai-page">
+  <div class="ai-wrap">
+    <div class="ai-header">
+      <div>
+        <h1 style="font-size:1.2rem;font-weight:800;letter-spacing:-.03em;color:#fff">AI Finance Assistant</h1>
+        <p class="text-secondary text-xs mt-1">Ask anything about your finances.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="ai-provider-badge" class="provider-badge offline">
+          <span style="width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0"></span>
+          <span id="ai-provider-label">Loading...</span>
+        </span>
+        <button class="btn btn-ghost btn-sm" onclick="clearChat()" title="Clear chat history">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+          Clear
+        </button>
+      </div>
+    </div>
+
+    <div class="chat-area" id="chat-area">
+      <div class="welcome-card animate-in">
+        <h2>Hey!</h2>
+        <p>I'm your personal finance AI. I have access to all your accounts, transactions, and investments. Ask me anything — I'll answer based strictly on your data.</p>
+      </div>
+      <div class="suggestion-chips animate-in-2" id="suggestion-chips">
+        <span class="chip" onclick="sendSuggestion(this)">What's my net worth?</span>
+        <span class="chip" onclick="sendSuggestion(this)">How much did I spend this month?</span>
+        <span class="chip" onclick="sendSuggestion(this)">What's my savings rate?</span>
+        <span class="chip" onclick="sendSuggestion(this)">How is my investment portfolio performing?</span>
+        <span class="chip" onclick="sendSuggestion(this)">Should I invest more in SCHD or QQQ?</span>
+        <span class="chip" onclick="sendSuggestion(this)">What are my biggest expenses?</span>
+        <span class="chip" onclick="sendSuggestion(this)">Am I on track for financial independence?</span>
+        <span class="chip" onclick="sendSuggestion(this)">Give me a monthly financial summary</span>
+      </div>
+    </div>
+
+    <div class="chat-input-bar">
+      <div class="chat-input-wrap">
+        <textarea id="chat-input" placeholder="Ask about your finances..." rows="1"
+          onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="btn btn-primary btn-sm" id="send-btn" onclick="sendMessage()" style="flex-shrink:0;padding:7px 14px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Send
+        </button>
+      </div>
+      <div style="text-align:center;margin-top:6px;font-size:.65rem;color:var(--text-muted)">AI has access to your current financial data</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _history = [];
+let _loading = false;
+
+function loadProviderStatus(){
+  fetch('/api/status').then(r=>r.json()).then(d=>{
+    const badge = document.getElementById('ai-provider-badge');
+    const label = document.getElementById('ai-provider-label');
+    if(d.active && d.active !== 'No providers'){
+      badge.classList.remove('offline');
+      label.textContent = d.active;
+    } else {
+      badge.classList.add('offline');
+      label.textContent = 'No providers';
+    }
+  }).catch(()=>{
+    document.getElementById('ai-provider-badge').classList.add('offline');
+    document.getElementById('ai-provider-label').textContent = 'Offline';
+  });
+}
+
+
+function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px'}
+
+function handleKey(e){
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}
+}
+
+function sendSuggestion(chip){
+  var chips=document.getElementById('suggestion-chips');
+  if(chips)chips.style.display='none';
+  document.getElementById('chat-input').value=chip.textContent;
+  sendMessage();
+}
+
+function clearChat(){
+  _history=[];
+  var area=document.getElementById('chat-area');
+  area.innerHTML='<div class="welcome-card animate-in"><h2>Chat cleared</h2><p>Ask me anything about your finances!</p></div>';
+  var newChips=document.createElement('div');
+  newChips.className='suggestion-chips animate-in-2';
+  newChips.id='suggestion-chips';
+  var suggestions=["What's my net worth?","How much did I spend this month?","What's my savings rate?","How is my investment portfolio performing?","Should I invest more in SCHD or QQQ?","What are my biggest expenses?","Am I on track for financial independence?","Give me a monthly financial summary"];
+  suggestions.forEach(function(s){
+    var c=document.createElement('span');
+    c.className='chip';c.textContent=s;c.onclick=function(){sendSuggestion(c)};
+    newChips.appendChild(c);
+  });
+  area.appendChild(newChips);
+}
+
+function addMsg(role,content,scroll){
+  if(scroll===undefined)scroll=true;
+  var area=document.getElementById('chat-area');
+  var div=document.createElement('div');
+  div.className='msg msg-'+(role==='user'?'user':'ai')+' animate-in';
+  if(role==='user'){
+    div.textContent=content;
+  } else {
+    try{div.innerHTML=marked.parse(content)}catch(e){div.textContent=content}
+  }
+  area.appendChild(div);
+  if(scroll) area.scrollTop=area.scrollHeight;
+  return div;
+}
+
+function sendMessage(){
+  if(_loading)return;
+  var input=document.getElementById('chat-input');
+  var msg=input.value.trim();
+  if(!msg)return;
+  input.value='';input.style.height='auto';
+
+  var chips=document.getElementById('suggestion-chips');
+  if(chips)chips.style.display='none';
+
+  addMsg('user',msg);
+  _history.push({role:'user',content:msg});
+
+  _loading=true;
+  var btn=document.getElementById('send-btn');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spinner"></span>';
+
+  var typingDiv=addMsg('assistant','');
+  typingDiv.innerHTML='<div class="typing-dots"><span></span><span></span><span></span></div> Thinking...';
+
+  fetch('/api/chat',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({message:msg,history:_history.slice(-10)})
+  }).then(function(r){return r.json()}).then(function(d){
+    if(d.ok){
+      try{typingDiv.innerHTML=marked.parse(d.reply)}catch(e){typingDiv.textContent=d.reply}
+      _history.push({role:'assistant',content:d.reply});
+    } else {
+      typingDiv.textContent='Error: '+(d.error||'Unknown error');
+      typingDiv.style.color='var(--red)';
+    }
+  }).catch(function(e){
+    typingDiv.textContent='Network error. Check your AI providers in Settings.';
+    typingDiv.style.color='var(--red)';
+  }).finally(function(){
+    document.getElementById('chat-area').scrollTop=99999;
+    _loading=false;
+    btn.disabled=false;
+    btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send';
+  });
+}
+
+loadProviderStatus();
+</script>
+{% endblock %}

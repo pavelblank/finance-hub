@@ -1,0 +1,528 @@
+{% extends "base.html" %}
+{% block title %} — Overview{% endblock %}
+{% block topbar_title %}Dashboard{% endblock %}
+
+{% block topbar_extra %}
+{% if current_account and current_account.username == 'demo' %}
+<a href="/logout" class="topbar-btn" style="background:var(--primary);color:#fff">Sign In</a>
+{% else %}
+<a href="/transactions" class="topbar-btn">
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>
+  Add
+</a>
+{% endif %}
+{% endblock %}
+
+{% block head %}
+<style>
+.overview-top{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:16px}
+.dash-tabs{display:flex;gap:6px;margin-bottom:20px;border-bottom:2px solid var(--border);padding-bottom:0}
+.dash-tab{padding:10px 20px;font-size:.82rem;font-weight:700;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:var(--transition);letter-spacing:.02em}
+.dash-tab:hover{color:var(--text)}
+.dash-tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+.dash-panel{display:none}
+.dash-panel.active{display:block}
+.overview-main{display:grid;grid-template-columns:60% 1fr;gap:14px}
+.summary-row{display:flex;align-items:baseline;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border-light)}
+.summary-row:last-child{border-bottom:none;font-weight:700;padding-top:9px}
+.summary-label{font-size:.82rem;color:var(--text-secondary)}
+.summary-val{font-size:.92rem;font-weight:600}
+.month-stat{display:flex;align-items:center;gap:6px;margin:5px 0}
+.month-stat-val{font-size:.95rem;font-weight:700}
+.month-stat-label{font-size:.72rem;color:var(--text-muted)}
+.donut-wrap{position:relative;width:90px;height:90px;flex-shrink:0}
+.acc-item{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border-light)}
+.acc-item:last-child{border-bottom:none}
+.acc-name{font-size:.83rem;color:var(--text);font-weight:500}
+.acc-sub{font-size:.68rem;color:var(--text-muted);margin-top:1px}
+.acc-bal{font-size:.9rem;font-weight:700;color:var(--text)}
+.bar-chart-wrap{height:160px;position:relative}
+.tx-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-light)}
+.tx-row:last-child{border-bottom:none}
+.tx-icon{width:36px;height:36px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0}
+.tx-desc{font-size:.83rem;color:var(--text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx-meta{font-size:.7rem;color:var(--text-muted);margin-top:1px}
+.cat-item{margin-bottom:12px}
+.cat-item:last-child{margin-bottom:0}
+.cat-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.cat-name{font-size:.8rem;font-weight:600;color:var(--text)}
+.cat-pct{font-size:.75rem;color:var(--text-muted)}
+.cat-amounts{display:flex;justify-content:space-between;font-size:.7rem;color:var(--text-muted);margin-top:4px}
+.net-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:var(--radius-pill);font-size:.72rem;font-weight:700}
+.trend-wrap{height:180px;position:relative}
+.period-tab{font-size:.68rem;padding:4px 10px;border-radius:var(--radius-pill);background:transparent;color:var(--text-muted);border:1px solid var(--border);cursor:pointer;transition:var(--transition)}
+.period-tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.period-tab:hover:not(.active){background:var(--border-light)}
+@media(max-width:1100px){.overview-top{grid-template-columns:1fr 1fr}.overview-main{grid-template-columns:1fr}}
+@media(max-width:768px){.overview-top{grid-template-columns:1fr}.overview-main{grid-template-columns:1fr}.dash-tab{padding:8px 12px;font-size:.75rem}}
+</style>
+{% endblock %}
+
+{% block content %}
+{% set prev = summary.monthly[-2] if summary.monthly|length >= 2 else {"income":0,"expense":0,"month":""} %}
+{% set prev_net = prev.income - prev.expense %}
+{% set this_year = summary.yearly[-1] if summary.yearly|length >= 1 else {"income":0,"expense":0,"year":""} %}
+{% set yearly_net = this_year.income - this_year.expense %}
+{% set yearly_rate = (yearly_net / this_year.income * 100)|round(1) if this_year.income > 0 else 0 %}
+
+<div>
+  {% if current_account and current_account.username == 'demo' %}
+  <div class="card animate-in" style="margin-bottom:16px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:var(--primary-dim);border:1px dashed var(--primary)">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:1.3rem">🎭</span>
+      <div>
+        <div style="font-weight:700;color:var(--text);font-size:.9rem">You're viewing a live demo</div>
+        <div style="font-size:.76rem;color:var(--text-secondary)">Every number on this page is randomly generated and resets each time you click Demo — no real data here.</div>
+      </div>
+    </div>
+    <a href="/logout" class="btn btn-primary btn-sm" style="white-space:nowrap">Sign In For Your Own Dashboard</a>
+  </div>
+  {% endif %}
+  <!-- ═══════════ TOP SUMMARY CARDS (Always Visible) ═══════════ -->
+  <div class="overview-top animate-in">
+    <!-- Summary / Net Worth -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Summary</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Accounts</span>
+        <span class="summary-val text-green">A$ {{ '{:,.2f}'.format(summary.acc_total) }}</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">Investments</span>
+        <span class="summary-val" style="color:var(--primary)">A$ {{ '{:,.2f}'.format(summary.inv_total) }}</span>
+      </div>
+      <div class="summary-row" style="border-top:2px solid var(--border);margin-top:4px">
+        <span class="summary-label" style="font-weight:700;color:var(--text)">Net Worth</span>
+        <span class="summary-val" style="font-size:1rem;color:var(--text)" data-countup="{{ summary.net_worth }}" data-prefix="A$ " data-decimals="0">A$ {{ '{:,.0f}'.format(summary.net_worth) }}</span>
+      </div>
+    </div>
+
+    <!-- This Month -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">This Month</span>
+        <span class="net-badge {% if summary.savings_month >= 0 %}badge-green{% else %}badge-red{% endif %}">
+          {{ '+' if summary.savings_month >= 0 else '' }}A$ {{ '{:,.0f}'.format(summary.savings_month) }}
+        </span>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <div class="donut-wrap">
+          <canvas id="chart-month"></canvas>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column">
+            <span style="font-size:.72rem;font-weight:700;color:var(--text)">{{ summary.savings_rate }}%</span>
+            <span style="font-size:.55rem;color:var(--text-muted)">saved</span>
+          </div>
+        </div>
+        <div style="flex:1">
+          <div class="month-stat">
+            <span style="color:var(--green);font-size:1rem">▲</span>
+            <div>
+              <div class="month-stat-val text-green">A$ {{ '{:,.2f}'.format(summary.income_month) }}</div>
+              <div class="month-stat-label">Income</div>
+            </div>
+          </div>
+          <div class="month-stat">
+            <span style="color:var(--red);font-size:1rem">▼</span>
+            <div>
+              <div class="month-stat-val text-red">A$ {{ '{:,.2f}'.format(summary.expense_month) }}</div>
+              <div class="month-stat-label">Expenses</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Last Month -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Last Month</span>
+        <span class="net-badge {% if prev_net >= 0 %}badge-green{% else %}badge-red{% endif %}">
+          {{ '+' if prev_net >= 0 else '' }}A$ {{ '{:,.0f}'.format(prev_net) }}
+        </span>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <div class="donut-wrap">
+          <canvas id="chart-prev-month"></canvas>
+          {% set prev_rate = (prev_net / prev.income * 100)|round(1) if prev.income > 0 else 0 %}
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column">
+            <span style="font-size:.72rem;font-weight:700;color:var(--text)">{{ prev_rate }}%</span>
+            <span style="font-size:.55rem;color:var(--text-muted)">saved</span>
+          </div>
+        </div>
+        <div style="flex:1">
+          <div class="month-stat">
+            <span style="color:var(--green);font-size:1rem">▲</span>
+            <div>
+              <div class="month-stat-val text-green">A$ {{ '{:,.2f}'.format(prev.income) }}</div>
+              <div class="month-stat-label">Income</div>
+            </div>
+          </div>
+          <div class="month-stat">
+            <span style="color:var(--red);font-size:1rem">▼</span>
+            <div>
+              <div class="month-stat-val text-red">A$ {{ '{:,.2f}'.format(prev.expense) }}</div>
+              <div class="month-stat-label">Expenses</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- This Year -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">This Year ({{ this_year.year }})</span>
+        <span class="net-badge {% if yearly_net >= 0 %}badge-green{% else %}badge-red{% endif %}">
+          {{ '+' if yearly_net >= 0 else '' }}A$ {{ '{:,.0f}'.format(yearly_net) }}
+        </span>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <div class="donut-wrap">
+          <canvas id="chart-year"></canvas>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column">
+            <span style="font-size:.72rem;font-weight:700;color:var(--text)">{{ yearly_rate }}%</span>
+            <span style="font-size:.55rem;color:var(--text-muted)">saved</span>
+          </div>
+        </div>
+        <div style="flex:1">
+          <div class="month-stat">
+            <span style="color:var(--green);font-size:1rem">▲</span>
+            <div>
+              <div class="month-stat-val text-green">A$ {{ '{:,.2f}'.format(this_year.income) }}</div>
+              <div class="month-stat-label">Income</div>
+            </div>
+          </div>
+          <div class="month-stat">
+            <span style="color:var(--red);font-size:1rem">▼</span>
+            <div>
+              <div class="month-stat-val text-red">A$ {{ '{:,.2f}'.format(this_year.expense) }}</div>
+              <div class="month-stat-label">Expenses</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ TAB NAVIGATION ═══════════ -->
+  <div class="dash-tabs">
+    <div class="dash-tab active" onclick="switchDashTab('overview',this)">Overview</div>
+    <div class="dash-tab" onclick="switchDashTab('transactions',this)">Transactions</div>
+    <div class="dash-tab" onclick="switchDashTab('investments',this)">Investments</div>
+  </div>
+
+  <!-- ═══════════ TAB 1: OVERVIEW ═══════════ -->
+  <div class="dash-panel active" id="panel-overview">
+    <div class="overview-main">
+      <!-- LEFT: Balance Trend + Income vs Expenses -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Balance Trend</span>
+            <span class="badge badge-blue">6 Months</span>
+          </div>
+          <div class="trend-wrap"><canvas id="chart-trend"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Income vs Expenses</span>
+            <div style="display:flex;gap:4px">
+              <button class="btn btn-sm period-tab active" onclick="switchPeriod('weekly',this)">Weekly</button>
+              <button class="btn btn-sm period-tab" onclick="switchPeriod('monthly',this)">Monthly</button>
+              <button class="btn btn-sm period-tab" onclick="switchPeriod('yearly',this)">Yearly</button>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px">
+            <span style="font-size:.7rem;color:var(--text-muted);display:flex;align-items:center;gap:4px"><span style="width:10px;height:3px;background:var(--green);border-radius:2px;display:inline-block"></span>Income</span>
+            <span style="font-size:.7rem;color:var(--text-muted);display:flex;align-items:center;gap:4px"><span style="width:10px;height:3px;background:var(--red);border-radius:2px;display:inline-block"></span>Expenses</span>
+          </div>
+          <div class="bar-chart-wrap" style="height:180px;position:relative">
+            <canvas id="chart-period"></canvas>
+          </div>
+        </div>
+      </div>
+      <!-- RIGHT: Spending by Category -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Spending</span>
+            <span class="badge badge-red">This Month</span>
+          </div>
+          {% set total_exp = summary.expense_month %}
+          {% if summary.categories %}
+            {% for cat in summary.categories %}
+            {% set pct = ((cat.value / total_exp) * 100)|round(0)|int if total_exp > 0 else 0 %}
+            <div class="cat-item reveal" style="transition-delay:{{ loop.index0 * 0.05 }}s">
+              <div class="cat-header">
+                <span class="cat-name">{{ cat.name }}</span>
+                <span class="cat-pct">{{ pct }}%</span>
+              </div>
+              <div class="progress-track">
+                <div class="progress-fill" style="width:{{ pct }}%;background:{% if pct >= 60 %}var(--red){% elif pct >= 40 %}var(--amber){% else %}var(--green-light){% endif %}"></div>
+              </div>
+              <div class="cat-amounts">
+                <span>A$ {{ '{:,.2f}'.format(cat.value) }}</span>
+                <span>of A$ {{ '{:,.2f}'.format(total_exp) }}</span>
+              </div>
+            </div>
+            {% endfor %}
+          {% else %}
+          <div style="text-align:center;padding:24px;color:var(--text-muted);font-size:.82rem">No expenses this month</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ TAB 2: TRANSACTIONS ═══════════ -->
+  <div class="dash-panel" id="panel-transactions">
+    <!-- Accounts -->
+    <div style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <h2 style="font-size:1rem;font-weight:800;color:var(--text);letter-spacing:-.02em">Accounts</h2>
+        <a href="/accounts" class="btn btn-ghost btn-sm">Manage</a>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px">
+        {% for acc in accounts %}
+        <div class="card reveal" style="padding:16px 18px;transition-delay:{{ loop.index0 * 0.04 }}s">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:36px;height:36px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;background:{% if acc.acc_type=='Savings' %}rgba(0,201,160,.1){% elif acc.acc_type=='Checking' %}rgba(21,101,192,.1){% elif acc.acc_type=='Fixed Deposit' %}rgba(124,117,245,.1){% else %}rgba(255,152,0,.1){% endif %}">
+                {% if acc.acc_type=='Savings' %}🏦{% elif acc.acc_type=='Checking' %}💳{% elif acc.acc_type=='Fixed Deposit' %}🔒{% else %}💰{% endif %}
+              </div>
+              <div>
+                <div style="font-size:.83rem;font-weight:600;color:var(--text)">{{ acc.name }}</div>
+                <div style="font-size:.68rem;color:var(--text-muted)">{{ acc.acc_type }} · {{ acc.country }}</div>
+              </div>
+            </div>
+            {% if acc.currency == 'BDT' %}{% set a_aud = acc.balance * summary.fx_bdt_aud %}
+            {% elif acc.currency == 'USD' %}{% set a_aud = acc.balance * summary.fx_usd_aud %}
+            {% else %}{% set a_aud = acc.balance %}{% endif %}
+            <div style="font-size:.95rem;font-weight:800;color:{% if acc.balance >= 0 %}var(--green){% else %}var(--red){% endif %};text-align:right">
+              A${{ '{:,.2f}'.format(a_aud) }}
+              {% if acc.currency != 'AUD' %}<div style="font-size:.6rem;color:var(--text-muted);font-weight:400">{{ acc.currency }} {{ '{:,.0f}'.format(acc.balance) }}</div>{% endif %}
+            </div>
+          </div>
+        </div>
+        {% else %}
+        <div class="card" style="grid-column:1/-1;text-align:center;padding:24px;color:var(--text-muted);font-size:.82rem">
+          No accounts yet. <a href="/accounts" style="color:var(--primary)">Add one!</a>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <!-- Recent Transactions -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Recent Transactions</span>
+        <a href="/transactions" class="btn btn-ghost btn-sm">View All</a>
+      </div>
+      {% for t in summary.recent %}
+      <div class="tx-row reveal" style="transition-delay:{{ loop.index0 * 0.04 }}s">
+        <div class="tx-icon {% if t.type=='income' %}badge-green{% else %}badge-red{% endif %}">
+          {% if t.category=='Rent' %}🏠{% elif t.category=='Utilities' %}💡{% elif t.category=='Internet' %}🌐{% elif t.category=='Health' or t.category=='Gym' %}💪{% elif t.category=='Insurance' %}🛡️{% elif t.category=='Car' or t.category=='Transport' %}🚗{% elif t.category=='Donation' %}❤️{% elif t.category=='Subscriptions' %}📱{% elif t.category=='Groceries' %}🛒{% elif t.category=='Food' %}🍽️{% elif t.type=='income' %}💰{% else %}💸{% endif %}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div class="tx-desc">{{ t.description or t.category }}</div>
+          <div class="tx-meta">{{ t.category }} · {{ t.date }}</div>
+        </div>
+        {% if t.currency == 'BDT' %}{% set t_aud = t.amount * summary.fx_bdt_aud %}
+        {% elif t.currency == 'USD' %}{% set t_aud = t.amount * summary.fx_usd_aud %}
+        {% else %}{% set t_aud = t.amount %}{% endif %}
+        <div class="{% if t.type=='income' %}amount-income{% else %}amount-expense{% endif %}" style="font-size:.88rem;white-space:nowrap;text-align:right">
+          {{ '+' if t.type=='income' else '−' }}A${{ '{:,.2f}'.format(t_aud) }}
+          {% if t.currency != 'AUD' %}<div style="font-size:.6rem;color:var(--text-muted)">{{ t.currency }} {{ '{:,.0f}'.format(t.amount) }}</div>{% endif %}
+        </div>
+      </div>
+      {% else %}
+      <div style="text-align:center;padding:24px;color:var(--text-muted);font-size:.82rem">
+        No transactions yet. <a href="/transactions" style="color:var(--primary)">Add one!</a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ═══════════ TAB 3: INVESTMENTS ═══════════ -->
+  <div class="dash-panel" id="panel-investments">
+    <div class="overview-main">
+      <!-- LEFT: Investment Trend -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Portfolio</span>
+            <a href="/investments" style="font-size:.72rem;color:var(--primary);text-decoration:none;font-weight:600">View All</a>
+          </div>
+          <div style="display:flex;align-items:center;gap:16px">
+            <div style="position:relative;width:100px;height:100px;flex-shrink:0">
+              <canvas id="chart-inv"></canvas>
+            </div>
+            <div style="flex:1;min-width:0">
+              {% for inv in summary.inv_types %}
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+                <div style="font-size:.78rem;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">{{ inv.name }}</div>
+                <div style="font-size:.78rem;font-weight:700;color:var(--text-secondary)">A$ {{ '{:,.0f}'.format(inv.value) }}</div>
+              </div>
+              {% endfor %}
+              {% if not summary.inv_types %}
+              <div style="font-size:.8rem;color:var(--text-muted);text-align:center;padding:16px 0">No investments yet</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Investment Trend</span>
+            <div style="display:flex;gap:4px">
+              <button class="btn btn-sm period-tab inv-tab active" onclick="switchInvPeriod('weekly',this)">Weekly</button>
+              <button class="btn btn-sm period-tab inv-tab" onclick="switchInvPeriod('monthly',this)">Monthly</button>
+              <button class="btn btn-sm period-tab inv-tab" onclick="switchInvPeriod('yearly',this)">Yearly</button>
+            </div>
+          </div>
+          {% if summary.inv_weekly|length > 0 %}
+          <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px">
+            <span style="font-size:.7rem;color:var(--text-muted);display:flex;align-items:center;gap:4px"><span style="width:10px;height:3px;background:#1565c0;border-radius:2px;display:inline-block"></span>Value</span>
+            <span style="font-size:.7rem;color:var(--text-muted);display:flex;align-items:center;gap:4px"><span style="width:10px;height:1px;border-top:2px dashed #9e9e9e;display:inline-block"></span>Cost Basis</span>
+          </div>
+          <div class="trend-wrap" style="height:160px"><canvas id="chart-inv-trend"></canvas></div>
+          {% else %}
+          <div style="text-align:center;padding:24px;color:var(--text-muted);font-size:.82rem">Tracking starts today — check back tomorrow for a trend.</div>
+          {% endif %}
+        </div>
+      </div>
+      <!-- RIGHT: Net Worth Trend -->
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Net Worth Trend</span>
+            <span class="badge badge-blue">6 Months</span>
+          </div>
+          <div class="trend-wrap"><canvas id="chart-trend2"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const MONTHLY   = {{ summary.monthly | tojson }};
+const WEEKLY    = {{ summary.weekly | tojson }};
+const YEARLY    = {{ summary.yearly | tojson }};
+const CATS      = {{ summary.categories | tojson }};
+const INV_TYPES = {{ summary.inv_types | tojson }};
+const INC_M     = {{ summary.income_month }};
+const EXP_M     = {{ summary.expense_month }};
+const INC_P     = {{ summary.monthly[-2].income if summary.monthly|length >= 2 else 0 }};
+const EXP_P     = {{ summary.monthly[-2].expense if summary.monthly|length >= 2 else 0 }};
+
+Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+Chart.defaults.color = '#9e9e9e';
+const PALETTE = ['#1565c0','#2e7d32','#e53935','#f57c00','#6a1b9a','#00838f','#c62828','#4527a0'];
+
+// ─── TAB SWITCHING ──────────────────────────────────────────────────────────
+let chartsInitialized = {overview:false, transactions:false, investments:false};
+
+function switchDashTab(tab, el){
+  document.querySelectorAll('.dash-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.dash-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+tab).classList.add('active');
+  if(!chartsInitialized[tab]){
+    chartsInitialized[tab] = true;
+    if(tab==='overview') initOverviewCharts();
+    if(tab==='investments') initInvestmentCharts();
+  }
+  setTimeout(()=>setupReveal(),50);
+}
+
+// ─── OVERVIEW CHARTS ────────────────────────────────────────────────────────
+function initOverviewCharts(){
+  // Trend line
+  const tCtx = document.getElementById('chart-trend').getContext('2d');
+  const trendGrad = tCtx.createLinearGradient(0,0,0,180);
+  trendGrad.addColorStop(0,'rgba(21,101,192,.15)');
+  trendGrad.addColorStop(1,'rgba(21,101,192,0)');
+  new Chart(tCtx, {
+    type:'line',
+    data:{labels:MONTHLY.map(m=>m.month.slice(5)),datasets:[{label:'Net',data:MONTHLY.map(m=>+(m.income-m.expense).toFixed(2)),borderColor:'#1565c0',backgroundColor:trendGrad,tension:.4,fill:true,pointRadius:4,pointBackgroundColor:'#1565c0',pointBorderColor:'#fff',pointBorderWidth:2,borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,animation:{duration:900},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' A$ '+c.parsed.y.toLocaleString('en-AU',{minimumFractionDigits:2})}}},scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{grid:{color:'#f0f0f0'},ticks:{callback:v=>'$'+v.toLocaleString(),font:{size:10}}}}}
+  });
+  // Period chart
+  renderPeriodChart('weekly');
+}
+
+// ─── INVESTMENT CHARTS ──────────────────────────────────────────────────────
+function initInvestmentCharts(){
+  // Investment donut
+  const iCtx = document.getElementById('chart-inv').getContext('2d');
+  if(INV_TYPES.length){
+    new Chart(iCtx,{type:'doughnut',data:{labels:INV_TYPES.map(i=>i.name),datasets:[{data:INV_TYPES.map(i=>i.value),backgroundColor:PALETTE,borderColor:'#fff',borderWidth:2,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.label+': A$'+c.parsed.toLocaleString()}}}}});
+  }
+  // Investment trend
+  if(document.getElementById('chart-inv-trend')) renderInvTrendChart('weekly');
+  // Net worth trend (separate canvas in investments tab)
+  const t2 = document.getElementById('chart-trend2');
+  if(t2){
+    const t2Ctx = t2.getContext('2d');
+    const g2 = t2Ctx.createLinearGradient(0,0,0,180);
+    g2.addColorStop(0,'rgba(21,101,192,.15)');g2.addColorStop(1,'rgba(21,101,192,0)');
+    new Chart(t2Ctx,{type:'line',data:{labels:MONTHLY.map(m=>m.month.slice(5)),datasets:[{label:'Net',data:MONTHLY.map(m=>+(m.income-m.expense).toFixed(2)),borderColor:'#1565c0',backgroundColor:g2,tension:.4,fill:true,pointRadius:4,pointBackgroundColor:'#1565c0',pointBorderColor:'#fff',pointBorderWidth:2,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:900},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' A$ '+c.parsed.y.toLocaleString('en-AU',{minimumFractionDigits:2})}}},scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{grid:{color:'#f0f0f0'},ticks:{callback:v=>'$'+v.toLocaleString(),font:{size:10}}}}}});
+  }
+}
+
+// ─── DONUT CHARTS (always visible in top cards) ─────────────────────────────
+setTimeout(()=>{
+  // This Month
+  new Chart(document.getElementById('chart-month').getContext('2d'),{type:'doughnut',data:{datasets:[{data:[Math.max(INC_M,0.01),Math.max(EXP_M,0.01)],backgroundColor:['#43a047','#e53935'],borderColor:'#fff',borderWidth:2,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',animation:{duration:900},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' A$ '+c.parsed.toLocaleString('en-AU',{minimumFractionDigits:2})}}}}});
+  // Last Month
+  new Chart(document.getElementById('chart-prev-month').getContext('2d'),{type:'doughnut',data:{datasets:[{data:[Math.max(INC_P,0.01),Math.max(EXP_P,0.01)],backgroundColor:['#43a047','#e53935'],borderColor:'#fff',borderWidth:2,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',animation:{duration:900},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' A$ '+c.parsed.toLocaleString('en-AU',{minimumFractionDigits:2})}}}}});
+  // This Year
+  const INC_Y={{ summary.yearly[-1].income if summary.yearly|length else 0 }};
+  const EXP_Y={{ summary.yearly[-1].expense if summary.yearly|length else 0 }};
+  new Chart(document.getElementById('chart-year').getContext('2d'),{type:'doughnut',data:{datasets:[{data:[Math.max(INC_Y,0.01),Math.max(EXP_Y,0.01)],backgroundColor:['#43a047','#e53935'],borderColor:'#fff',borderWidth:2,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',animation:{duration:900},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' A$ '+c.parsed.toLocaleString('en-AU',{minimumFractionDigits:2})}}}}});
+  // Init overview tab charts
+  chartsInitialized.overview = true;
+  initOverviewCharts();
+  setTimeout(()=>{document.querySelectorAll('.reveal').forEach((el,i)=>{setTimeout(()=>el.classList.add('visible'),i*40+200)})},200);
+},100);
+
+// ─── PERIOD CHART (Income vs Expenses) ──────────────────────────────────────
+const PERIOD_DATA = {weekly:WEEKLY,monthly:MONTHLY,yearly:YEARLY};
+let periodChart = null;
+function renderPeriodChart(period){
+  const data = PERIOD_DATA[period]||[];
+  const labels = data.map(d=>d.week||d.month?.slice(5)||d.year);
+  const ctx = document.getElementById('chart-period').getContext('2d');
+  if(periodChart) periodChart.destroy();
+  periodChart = new Chart(ctx,{type:'bar',data:{labels:labels,datasets:[{label:'Income',data:data.map(d=>d.income),backgroundColor:'#a5d6a7',borderColor:'#2e7d32',borderWidth:1.5,borderRadius:4},{label:'Expenses',data:data.map(d=>d.expense),backgroundColor:'#ef9a9a',borderColor:'#c62828',borderWidth:1.5,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:600},interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' A$ '+c.parsed.y.toLocaleString('en-AU',{minimumFractionDigits:2})}}},scales:{x:{grid:{display:false},ticks:{font:{size:9},maxRotation:45}},y:{grid:{color:'#f0f0f0'},ticks:{callback:v=>'$'+v.toLocaleString(),font:{size:9}},beginAtZero:true}}}});
+}
+function switchPeriod(period,btn){
+  btn.closest('.card').querySelectorAll('.period-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderPeriodChart(period);
+}
+
+// ─── INVESTMENT TREND CHART ─────────────────────────────────────────────────
+const INV_WEEKLY={{ summary.inv_weekly|tojson }};
+const INV_MONTHLY={{ summary.inv_monthly|tojson }};
+const INV_YEARLY={{ summary.inv_yearly|tojson }};
+const INV_PERIOD_DATA={weekly:INV_WEEKLY,monthly:INV_MONTHLY,yearly:INV_YEARLY};
+let invTrendChart=null;
+function renderInvTrendChart(period){
+  const canvas=document.getElementById('chart-inv-trend');
+  if(!canvas)return;
+  const data=INV_PERIOD_DATA[period]||[];
+  const ctx=canvas.getContext('2d');
+  if(invTrendChart)invTrendChart.destroy();
+  invTrendChart=new Chart(ctx,{type:'line',data:{labels:data.map(d=>{if(period==='yearly')return d.date.slice(0,4);if(period==='monthly')return d.date.slice(0,7);return d.date.slice(5)}),datasets:[{label:'Value',data:data.map(d=>d.total_value),borderColor:'#1565c0',backgroundColor:'rgba(21,101,192,.12)',tension:.35,fill:true,pointRadius:3,pointBackgroundColor:'#1565c0',borderWidth:2},{label:'Cost Basis',data:data.map(d=>d.total_cost),borderColor:'#9e9e9e',borderDash:[5,4],tension:.35,fill:false,pointRadius:0,borderWidth:1.5}]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:600},interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.dataset.label+': A$ '+c.parsed.y.toLocaleString('en-AU',{minimumFractionDigits:2})}}},scales:{x:{grid:{display:false},ticks:{font:{size:9},maxRotation:45}},y:{grid:{color:'#f0f0f0'},ticks:{callback:v=>'$'+v.toLocaleString(),font:{size:9}}}}}});
+}
+function switchInvPeriod(period,btn){
+  btn.closest('.card').querySelectorAll('.period-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderInvTrendChart(period);
+}
+</script>
+{% endblock %}
