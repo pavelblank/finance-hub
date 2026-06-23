@@ -1,10 +1,10 @@
-# Finance Hub V1.0.0
+<div align="center">
+
+# 💰 Finance Hub V1.0.0
 
 **Self-hosted personal finance dashboard. Multi-currency. AI-assisted. Locally owned.**
 
 Track transactions · Manage investments · Monitor accounts · Visualise net worth · Run recurring rules · Chat with your finances via AI
-
----
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue?style=flat-square&logo=python)
 ![Flask](https://img.shields.io/badge/Flask-3.0%2B-black?style=flat-square&logo=flask)
@@ -13,93 +13,124 @@ Track transactions · Manage investments · Monitor accounts · Visualise net wo
 ![Self-Hosted](https://img.shields.io/badge/Deployment-Self--Hosted-orange?style=flat-square)
 ![Multi-Currency](https://img.shields.io/badge/Currency-AUD%20%7C%20USD%20%7C%20BDT-purple?style=flat-square)
 
+**[Features](#-features-in-detail) · [Quick Start](#-quick-start) · [Troubleshooting](#-troubleshooting) · [Security](#-security) · [Updating](#-updating) · [License](#-license)**
+
+</div>
+
 ---
 
-**[Features](#-features-in-detail) · [Quick Start](#-quick-start) · [Screenshots](#-screenshots) · [Security](#-security) · [Template Data](#-template-data) · [License](#-license)**
+## 📸 Overview
 
----
+> **Dashboard:** net worth, monthly income and expense, balance trend, spending by category, investment portfolio donut.
+>
+> **Transactions:** full history with BDT/USD → AUD live conversion, recurring templates, category breakdown.
+>
+> **Investments:** portfolio by country (🇦🇺 🇺🇸 🇧🇩), gain/loss in AUD, property cash flow dashboard.
+>
+> **Accounts:** multi-currency balances, all converted to AUD in real time.
 
-## 📸 Screenshots
-
-> **Dashboard** — Net worth, monthly income/expense, balance trend, spending by category, investment portfolio donut
-
-> **Transactions** — Full history with BDT/USD→AUD live conversion, recurring templates, category breakdown
-
-> **Investments** — Portfolio by country (🇦🇺 🇺🇸 🇧🇩), gain/loss in AUD, property cash flow dashboard
-
-> **Accounts** — Multi-currency balances all converted to AUD in real time
+*Add your own screenshots once the app is running: drop PNGs into a `docs/` folder and reference them here with `![Dashboard](docs/dashboard.png)`.*
 
 ---
 
 ## ✨ Why Finance Hub?
 
-- **100% local** — your financial data never leaves your machine
-- **Multi-currency** — live FX rates (AUD, USD, BDT and more) auto-convert every figure to AUD
-- **Recurring transactions** — set weekly / monthly / yearly rules; system auto-posts them on schedule
-- **Investment tracking** — cost basis vs current value with gain/loss %, grouped by country and type
-- **Property cash flow** — dedicated Bangladesh property dashboard with BDT→AUD rental income tracking
-- **AI chat** — ask questions about your own finances using any local or cloud LLM
-- **Tax notes** — per-category tax annotation for year-end reporting
-- **Multi-user** — household accounts with per-user or shared investment positions
-- **Export** — CSV and Excel export of any dataset
-- **Dark UI** — responsive mobile-first design, works on phone or desktop browser
+- **100% local:** your financial data never leaves your machine.
+- **Multi-currency:** live FX rates (AUD, USD, BDT and more) auto-convert every figure to AUD.
+- **Recurring transactions:** set weekly, monthly or yearly rules and the system posts them automatically on schedule.
+- **Investment tracking:** cost basis vs current value with gain/loss %, grouped by country and type.
+- **Property cash flow:** a dedicated Bangladesh property dashboard with BDT → AUD rental income tracking.
+- **AI chat:** ask questions about your own finances using any local or cloud LLM.
+- **Tax notes:** per-category tax annotation for year-end reporting.
+- **Multi-user:** household accounts with per-user or shared investment positions.
+- **Export:** CSV and Excel export of any dataset.
+- **Dark UI:** responsive, mobile-first design that works on phone or desktop.
 
 ---
 
 ## 📋 Prerequisites
 
-| Requirement | Minimum | Notes |
-|---|---|---|
-| Python | 3.10+ | 3.11 recommended |
-| OS | Windows / macOS / Linux | Any platform Python runs on |
-| Browser | Chrome / Firefox / Safari | Modern browser required for charts |
-| Disk | ~50 MB | SQLite database grows with your data |
-| RAM | 256 MB | Lightweight Flask server |
-| AI (optional) | Any OpenAI-compatible API | Ollama, OpenAI, Anthropic, etc. |
+| Requirement   | Minimum                   | Notes                                 |
+| -------------- | -------------------------- | --------------------------------------- |
+| Python        | 3.10+                      | 3.11 recommended                        |
+| OS            | Windows / macOS / Linux    | Any platform Python runs on             |
+| Browser       | Chrome / Firefox / Safari  | Modern browser required for charts      |
+| Disk          | ~50 MB                     | SQLite database grows with your data    |
+| RAM           | 256 MB                     | Lightweight Flask server                |
+| AI (optional) | Any OpenAI-compatible API  | Ollama, OpenAI, Anthropic, etc.         |
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Clone & Install
+New to this? Follow these steps in order. Each one works the same on Windows, macOS and Linux unless noted.
+
+### 1. Install Python
+
+Skip this if `python --version` already prints 3.10 or higher. Otherwise grab it from [python.org/downloads](https://www.python.org/downloads/) and, on Windows, tick **"Add python.exe to PATH"** during setup.
+
+### 2. Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/finance-hub.git
+git clone https://github.com/pavelblank/finance-hub.git
 cd finance-hub
+```
+
+No Git? Click the green **Code** button on the [GitHub page](https://github.com/pavelblank/finance-hub) and choose **Download ZIP**, then extract it and open a terminal in that folder.
+
+### 3. (Optional but recommended) Create a virtual environment
+
+```bash
+python -m venv venv
+venv\Scripts\activate        # Windows
+source venv/bin/activate     # macOS / Linux
+```
+
+### 4. Install dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Run
+### 5. Run the server
 
-**Windows:**
-```bat
-run.bat
-```
+**Windows:** double-click `run.bat`, or run it from a terminal.
 
 **macOS / Linux:**
+
 ```bash
 python main.py
 ```
 
-### 3. Open
+### 6. Open the app
 
 ```
 http://localhost:8082
 ```
 
-Default login is created on first run — set your username and password in the **Settings** page.
+No account exists yet on first run. Open the **Settings** page and create your username and password there.
 
-### 4. Configure AI (optional)
+### 7. (Optional) Load demo data
 
-Go to **Settings → AI Providers** and enter your API key for any supported engine:
+Want to see the dashboard populated before entering real numbers?
 
-| Engine | Notes |
-|---|---|
-| Ollama (local) | Free, runs offline — install from ollama.com |
-| OpenAI (GPT-4o) | Requires API key |
-| Anthropic (Claude) | Requires API key |
-| OpenRouter | Access 100+ models with one key |
-| Any OpenAI-compatible | Custom base URL supported |
+```bash
+python seed_demo.py
+```
+
+This adds randomised sample transactions, investments and accounts. No real financial data is included or required.
+
+### 8. (Optional) Connect an AI provider
+
+Go to **Settings → AI Providers** and add an API key for any supported engine:
+
+| Engine                | Notes                                          |
+| ---------------------- | ------------------------------------------------ |
+| Ollama (local)         | Free and runs offline. Install from ollama.com   |
+| OpenAI (GPT-4o)        | Requires an API key                              |
+| Anthropic (Claude)     | Requires an API key                              |
+| OpenRouter             | Access 100+ models with one key                  |
+| Any OpenAI-compatible  | Custom base URL supported                        |
 
 ---
 
@@ -107,81 +138,82 @@ Go to **Settings → AI Providers** and enter your API key for any supported eng
 
 ### 💸 Transactions
 
-- Add income / expense entries with date, category, amount, currency, account, notes
-- **Live FX conversion** — BDT and USD amounts display as AUD equivalent with original shown below
-- **Recurring templates** — weekly / monthly / yearly auto-posting rules
-- Summary strip: filtered income / expenses / net always in AUD
-- Category autocomplete — new categories created automatically on first use
-- Search, filter by type, month, category
+- Add income/expense entries with date, category, amount, currency, account and notes.
+- **Live FX conversion:** BDT and USD amounts display as their AUD equivalent, with the original shown below.
+- **Recurring templates:** weekly, monthly or yearly auto-posting rules.
+- Summary strip: filtered income, expenses and net, always shown in AUD.
+- Category autocomplete: new categories are created automatically on first use.
+- Search and filter by type, month or category.
 
 ### 📈 Investments
 
-- Track positions by name, type, units, cost basis, current value, currency, country
-- **AUD conversion** — USD and BDT positions converted at live rates in every column
-- Country breakdown cards: 🇦🇺 Australia · 🇺🇸 USA · 🇧🇩 Bangladesh
-- Gain / Loss % per position and per country
+- Track positions by name, type, units, cost basis, current value, currency and country.
+- **AUD conversion:** USD and BDT positions are converted at live rates in every column.
+- Country breakdown cards: 🇦🇺 Australia · 🇺🇸 USA · 🇧🇩 Bangladesh.
+- Gain/loss % per position and per country.
 - **Property cash flow dashboard** (Bangladesh property section):
-  - Monthly rental income in BDT + AUD equivalent
-  - Maintenance and repair cost tracking
-  - Upcoming scheduled costs calendar
-  - All-time cash flow summary
-- Portfolio doughnut chart by investment type
+  - Monthly rental income in BDT plus AUD equivalent.
+  - Maintenance and repair cost tracking.
+  - Upcoming scheduled costs calendar.
+  - All-time cash flow summary.
+- Portfolio doughnut chart by investment type.
 
 ### 🏦 Accounts
 
-- Multi-currency account balances (AUD, USD, BDT)
-- All balances displayed in AUD with original currency shown
-- Account types: Savings, Checking, Fixed Deposit, Investment
-- Country tagging (Australia, USA, Bangladesh, Other)
+- Multi-currency account balances (AUD, USD, BDT).
+- All balances displayed in AUD with the original currency shown alongside.
+- Account types: Savings, Checking, Fixed Deposit, Investment.
+- Country tagging (Australia, USA, Bangladesh, Other).
 
 ### 📊 Dashboard
 
-- **Net worth** = Accounts + Investments − Liabilities (all AUD-converted)
-- This Month / Last Month / This Year income vs expense donuts
-- Balance Trend line chart (6 months)
-- Income vs Expenses bar chart (weekly / monthly / yearly)
-- Spending by Category progress bars
-- Investment Portfolio pie chart
-- Investment Trend chart (value vs cost basis over time)
-- Recent Transactions widget with AUD conversion
+- **Net worth** = Accounts + Investments - Liabilities, all converted to AUD.
+- This Month / Last Month / This Year income vs expense donuts.
+- Balance trend line chart (6 months).
+- Income vs expenses bar chart (weekly, monthly or yearly).
+- Spending by category progress bars.
+- Investment portfolio pie chart.
+- Investment trend chart (value vs cost basis over time).
+- Recent transactions widget with AUD conversion.
 
 ### 🔁 Recurring Transactions
 
-- Set any transaction as a recurring template
-- Frequencies: weekly, monthly, yearly
-- Optional start date and end date
-- Auto-processed every time the Transactions page loads
-- Summary strip shows total recurring income and recurring cost per month
+- Turn any transaction into a recurring template.
+- Frequencies: weekly, monthly, yearly.
+- Optional start and end dates.
+- Auto-processed every time the Transactions page loads.
+- Summary strip shows total recurring income and recurring cost per month.
 
 ### 🤖 AI Chat
 
-- Ask natural-language questions about your finances
-- Context-aware: optionally inject your account/investment/transaction summaries
-- Switch AI providers from within the chat UI
-- Chat history persisted locally
+- Ask natural-language questions about your finances.
+- Context-aware: optionally inject your account, investment and transaction summaries.
+- Switch AI providers from within the chat UI.
+- Chat history is persisted locally.
 
 ### 📝 Tax & Notes
 
-- Per-category tax notes for year-end reporting
-- Free-form notes section for financial memos
+- Per-category tax notes for year-end reporting.
+- A free-form notes section for financial memos.
 
 ### 📤 Export
 
-- CSV and Excel (XLSX) export for transactions, investments, accounts, liabilities
-- Accessible from Settings → Export
+- CSV and Excel (XLSX) export for transactions, investments, accounts and liabilities.
+- Accessible from **Settings → Export**.
 
 ---
 
 ## 🌐 Live FX Rates
 
-Finance Hub fetches live exchange rates from `open.er-api.com` (free, no API key required) and caches them for 1 hour.
+Finance Hub fetches live exchange rates from `open.er-api.com` (free, no API key required) and caches them for one hour.
 
-| Pair | Source |
-|---|---|
-| USD → AUD | Live API |
-| BDT → AUD | Cross-calculated via USD |
+| Pair      | Source                    |
+| ---------- | --------------------------- |
+| USD → AUD | Live API                    |
+| BDT → AUD | Cross-calculated via USD    |
 
-Fallback rates are used if the API is unreachable:
+Fallback rates are used automatically if the API is unreachable:
+
 - `1 USD = 1.4275 AUD`
 - `1 BDT ≈ 0.01161 AUD`
 
@@ -198,15 +230,16 @@ python seed_demo.py
 ```
 
 This creates:
-- 3 sample users (Admin, Partner, Demo)
-- 12 months of randomised income / expense transactions
-- 6 sample investments (Australian ETF, US ETF, Bangladesh property)
-- 3 sample accounts (Savings AUD, Fixed Deposit BDT, US Brokerage USD)
-- Sample recurring templates (rent, utilities, subscriptions)
 
-All amounts are randomised — no real financial data is included.
+- 3 sample users (Admin, Partner, Demo).
+- 12 months of randomised income/expense transactions.
+- 6 sample investments (Australian ETF, US ETF, Bangladesh property).
+- 3 sample accounts (Savings AUD, Fixed Deposit BDT, US Brokerage USD).
+- Sample recurring templates (rent, utilities, subscriptions).
 
-> ⚠️ **Before deploying publicly:** change the default admin password in Settings, set a strong `secret.key`, and bind to `localhost` only (default).
+All amounts are randomised. No real financial data is included.
+
+> ⚠️ **Before deploying publicly:** change the default admin password in Settings, set a strong `secret.key`, and keep the server bound to `localhost` (the default) unless it sits behind a reverse proxy with HTTPS.
 
 ---
 
@@ -214,11 +247,12 @@ All amounts are randomised — no real financial data is included.
 
 ```
 finance-hub/
-├── main.py                  # Flask app — all routes, API endpoints, FX logic
+├── main.py                  # Flask app: routes, API endpoints, FX logic
 ├── requirements.txt         # Python dependencies
 ├── run.bat                  # Windows launcher
-├── seed_demo.py             # Demo data seeder (no real data)
+├── seed_demo.py              # Demo data seeder (no real data)
 ├── README.md
+├── LICENSE
 ├── templates/
 │   ├── base.html            # Shared layout, nav, styles
 │   ├── index.html           # Dashboard
@@ -226,40 +260,41 @@ finance-hub/
 │   ├── investments.html     # Portfolio + property cash flow
 │   ├── accounts.html        # Account balances
 │   ├── liabilities.html     # Debt tracking
-│   ├── tax.html             # Tax notes
-│   ├── ai.html              # AI chat interface
-│   ├── notes.html           # Free-form notes
-│   ├── settings.html        # Users, AI providers, export
-│   └── login.html           # Authentication
-└── data/                    # Auto-created on first run (gitignored)
-    ├── finance.db           # SQLite database
-    ├── fx_cache.json        # Live FX rate cache
-    └── providers.json       # AI engine config
+│   ├── tax.html              # Tax notes
+│   ├── ai.html                # AI chat interface
+│   ├── notes.html            # Free-form notes
+│   ├── settings.html         # Users, AI providers, export
+│   └── login.html            # Authentication
+├── static/                   # CSS, JS and image assets
+└── data/                      # Auto-created on first run (gitignored)
+    ├── finance.db             # SQLite database
+    ├── fx_cache.json          # Live FX rate cache
+    └── providers.json         # AI engine config
 ```
 
 ---
 
 ## ⚙️ Settings
 
-| Section | Purpose |
-|---|---|
-| Users | Add / edit household members, assign colours and emoji |
-| AI Providers | Configure LLM engines and API keys |
-| Export | Download CSV or XLSX of any dataset |
-| Version | App version and system info |
+| Section      | Purpose                                                  |
+| ------------- | ------------------------------------------------------------ |
+| Users        | Add/edit household members, assign colours and emoji         |
+| AI Providers | Configure LLM engines and API keys                            |
+| Export       | Download CSV or XLSX of any dataset                           |
+| Version      | App version and system info                                   |
 
 ---
 
 ## 🔒 Security
 
-- **Session auth** — password-hashed with `werkzeug.security` (PBKDF2-SHA256)
-- **Per-user data isolation** — non-admin users only see their own transactions and accounts
-- **Shared investments** — `user_id=0` sentinel for household-level positions visible to all members
-- **Admin-only controls** — user management, shared data, and "view as" impersonation require admin role
-- **Localhost binding** — server binds to `127.0.0.1` by default; do not expose to the internet without a reverse proxy and HTTPS
-- **Secret key** — Flask session key stored in `data/secret.key` (auto-generated, gitignored)
-- **No telemetry** — zero external data collection; FX rate fetch is the only outbound call
-- **Audit log** — all add / edit / delete actions written to `app_out.log`
+- **Session auth:** passwords hashed with `werkzeug.security` (PBKDF2-SHA256).
+- **Per-user data isolation:** non-admin users only see their own transactions and accounts.
+- **Shared investments:** a `user_id=0` sentinel marks household-level positions visible to all members.
+- **Admin-only controls:** user management, shared data, and "view as" impersonation all require the admin role.
+- **Localhost binding:** the server binds to `127.0.0.1` by default. Do not expose it to the internet without a reverse proxy and HTTPS.
+- **Secret key:** the Flask session key is stored in `data/secret.key` (auto-generated and gitignored).
+- **No telemetry:** zero external data collection. The FX rate fetch is the only outbound call.
+- **Audit log:** every add, edit and delete action is written to `app_out.log`.
 
 > See the source comments in `main.py` for the Demo account isolation design (Demo users are sandboxed from real household data).
 
@@ -269,55 +304,73 @@ finance-hub/
 
 Finance Hub exposes a REST API consumed by its own frontend. Key endpoints:
 
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/transactions` | List transactions (filterable) |
-| POST | `/api/transactions` | Add transaction |
-| PUT | `/api/transactions/<id>` | Update transaction |
-| DELETE | `/api/transactions/<id>` | Delete transaction |
-| GET | `/api/investments` | List investments |
-| POST | `/api/investments` | Add investment |
-| GET | `/api/accounts` | List accounts |
-| POST | `/api/recurring` | Create recurring template |
-| PUT | `/api/recurring/<id>` | Update recurring template |
-| GET | `/api/summary` | Dashboard summary (AUD-converted) |
+| Method | Endpoint                  | Description                         |
+| ------- | --------------------------- | --------------------------------------- |
+| GET    | `/api/transactions`        | List transactions (filterable)          |
+| POST   | `/api/transactions`        | Add transaction                         |
+| PUT    | `/api/transactions/<id>`   | Update transaction                      |
+| DELETE | `/api/transactions/<id>`   | Delete transaction                      |
+| GET    | `/api/investments`         | List investments                        |
+| POST   | `/api/investments`         | Add investment                          |
+| GET    | `/api/accounts`            | List accounts                           |
+| POST   | `/api/recurring`            | Create recurring template               |
+| PUT    | `/api/recurring/<id>`       | Update recurring template               |
+| GET    | `/api/summary`              | Dashboard summary (AUD-converted)       |
 
 All endpoints return `{"ok": true, "data": ...}` or `{"ok": false, "error": "..."}`.
 
 ---
 
+## 🛠️ Troubleshooting
+
+| Problem                          | Likely cause                              | Fix                                                                          |
+| ---------------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------- |
+| `'python' is not recognised`      | Python isn't installed or isn't on PATH      | Install Python 3.10+ from python.org and tick "Add to PATH" during setup          |
+| Port 8082 already in use          | Another process is using the port            | `run.bat` frees it automatically on Windows. On macOS/Linux run `lsof -i :8082` then `kill <PID>` |
+| `pip install` fails                | Outdated pip or missing build tools          | Run `python -m pip install --upgrade pip`, then retry                             |
+| Blank page in browser              | Server still starting, or a cached old page  | Wait a few seconds and refresh, or open a private/incognito window                |
+| Can't log in on first run          | No account exists yet                        | Open the **Settings** page on first run to create your username and password      |
+| FX rates look off                  | Live FX API unreachable                      | Finance Hub falls back to fixed rates automatically; check your internet connection |
+
+---
+
+## 🔄 Updating
+
+```bash
+git pull
+pip install -r requirements.txt --upgrade
+```
+
+Restart the server afterwards.
+
+---
+
+## 🤝 Contributing
+
+Issues and pull requests are welcome. Fork the repo, create a feature branch, and describe what changed and why in your PR. For larger changes, open an issue first to discuss the approach.
+
+---
+
 ## 🤖 Built With AI
 
-Finance Hub was built entirely using **Claude Code** (Anthropic), demonstrating that a production-grade, multi-currency personal finance system can be created through AI-assisted development — no traditional software development background required.
+Finance Hub was built entirely using **Claude Code** (Anthropic), showing that a production-grade, multi-currency personal finance system can be created through AI-assisted development, with no traditional software development background required.
 
 ---
 
 ## 📜 License
 
-MIT License — free to use, modify, and distribute.
-
-```
-Copyright (c) 2026
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-provided to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
-```
+MIT License. Free to use, modify and distribute. See [LICENSE](LICENSE) for the full text.
 
 ---
 
 ## 🌟 Star & Share
 
-If Finance Hub saves you money on subscription finance apps — give it a ⭐ on GitHub and share it with anyone who wants to own their financial data.
+If Finance Hub saves you money on subscription finance apps, give it a star on GitHub and share it with anyone who wants to own their financial data.
 
 ---
 
+<div align="center">
+
 *Self-hosted. Local-first. Your finances, your machine, your keys.*
+
+</div>
