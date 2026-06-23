@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+{% block title %} — Tax Ready{% endblock %}
+{% block topbar_title %}Tax Ready{% endblock %}
+
+{% block head %}
+<style>
+.tax-tab-bar{display:flex;gap:6px;margin-bottom:18px}
+.tax-tab{font-size:.8rem;padding:8px 18px;border-radius:var(--radius-pill);background:var(--card-bg);color:var(--text-secondary);border:1px solid var(--border);cursor:pointer;font-weight:600;transition:var(--transition)}
+.tax-tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.tax-panel.hidden{display:none}
+.tax-table{width:100%;border-collapse:collapse;font-size:.82rem}
+.tax-table th{text-align:left;padding:8px 10px;color:var(--text-muted);font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border)}
+.tax-table td{padding:8px 10px;border-bottom:1px solid var(--border-light)}
+.tax-table tr:last-child td{border-bottom:none}
+.profile-field{display:flex;flex-direction:column;gap:2px;padding:10px 0;border-bottom:1px solid var(--border-light)}
+.profile-field:last-child{border-bottom:none}
+.profile-field-label{font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em}
+.profile-field-val{font-size:.9rem;font-weight:600;color:var(--text)}
+.disclaimer-banner{background:rgba(230,81,0,.08);border:1px solid rgba(230,81,0,.25);border-radius:var(--radius-sm);padding:12px 16px;font-size:.78rem;color:var(--amber);margin-bottom:18px;display:flex;gap:10px;align-items:flex-start}
+</style>
+{% endblock %}
+
+{% block content %}
+{% set total_income_fy = income_rows | sum(attribute='total') %}
+{% set total_expense_fy = expense_rows | sum(attribute='total') %}
+{% set net_fy = total_income_fy - total_expense_fy %}
+
+<div class="animate-in" style="max-width:920px">
+  <div class="mb-4">
+    <h1 style="font-size:1.4rem;font-weight:800;letter-spacing:-.03em;color:var(--text)">Tax Ready</h1>
+    <p class="text-secondary text-xs mt-1">Organised like an accountant's client profile — Australian Financial Year (1 Jul – 30 Jun)</p>
+  </div>
+
+  <div class="disclaimer-banner">
+    <span style="font-size:1.1rem">⚠️</span>
+    <span>This page organises your records for tax time. It is <strong>not tax or financial advice</strong> — always confirm figures with a registered tax agent or accountant before lodging.</span>
+  </div>
+
+  <div class="tax-tab-bar">
+    <button class="tax-tab active" onclick="showTaxTab('current',this)">Current Year (FY {{ fy_label }})</button>
+    <button class="tax-tab" onclick="showTaxTab('previous',this)">Previous Years</button>
+  </div>
+
+  <!-- ══ CURRENT YEAR ══ -->
+  <div id="tax-panel-current" class="tax-panel">
+
+    <div class="card mb-4" style="padding:16px 20px">
+      <div class="card-header">
+        <span class="card-title">Financial Year {{ fy_label }}</span>
+        <span class="badge badge-blue">{{ fy_start.strftime('%d %b %Y') }} – {{ fy_end.strftime('%d %b %Y') }}</span>
+      </div>
+      <p class="text-xs mt-2" style="color:var(--text-muted)">FX snapshot used below: 1 USD = A$ {{ '{:.4f}'.format(fx_usd_aud) }} · 1 AUD ≈ {{ '{:.2f}'.format(1/fx_bdt_aud) }} BDT</p>
+    </div>
+
+    <!-- Business Profile -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title">Business Profile</span>
+        <a href="/settings" class="btn btn-ghost btn-sm" onclick="localStorage.setItem('fin_settings_tab','profile')">Edit in Settings</a>
+      </div>
+      {% if current_uid %}
+      <div class="profile-field">
+        <span class="profile-field-label">TFN</span>
+        <span class="profile-field-val">{{ tfn or 'Not set' }}</span>
+      </div>
+      {% else %}
+      <div class="profile-field">
+        <span class="profile-field-label">TFN</span>
+        <span class="profile-field-val" style="font-weight:500;color:var(--text-muted)">TFN is per-person — select someone in "View As" to see theirs</span>
+      </div>
+      {% endif %}
+      {% for b in businesses %}
+      <div class="profile-field">
+        <span class="profile-field-label">Business{% if not current_uid %} · {{ users | selectattr('id','equalto', b.user_id) | map(attribute='name') | first | default('') }}{% endif %}</span>
+        <span class="profile-field-val">{{ b.business_name or '—' }}{% if b.abn %} · ABN {{ b.abn }}{% endif %}{% if b.gst_registered %} · GST registered{% endif %}</span>
+      </div>
+      {% else %}
+      <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:.82rem">
+        No business added yet. <a href="/settings" style="color:var(--primary)" onclick="localStorage.setItem('fin_settings_tab','profile')">Add a business / TFN in Settings →</a>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Business Income highlight -->
+    <div class="card mb-4" style="padding:16px 20px;border-left:3px solid #00c9a0">
+      <div style="font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Business Income (Sole Trader) — FY {{ fy_label }}</div>
+      <div style="font-size:1.5rem;font-weight:800;color:var(--green);margin-top:4px">A$ {{ '{:,.2f}'.format(business_income) }}</div>
+      <div style="font-size:.7rem;color:var(--text-muted);margin-top:2px">Tracked separately from Salary/Freelance via the "Business Income" category</div>
+    </div>
+
+    <!-- Income breakdown -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title">Income — by Category</span>
+        <span class="badge badge-green">A$ {{ '{:,.2f}'.format(total_income_fy) }} total</span>
+      </div>
+      <table class="tax-table">
+        <thead><tr><th>Category</th><th style="text-align:right">Transactions</th><th style="text-align:right">Total</th></tr></thead>
+        <tbody>
+          {% for r in income_rows %}
+          <tr><td>{{ r.category }}</td><td style="text-align:right">{{ r.n }}</td><td style="text-align:right;font-weight:600">A$ {{ '{:,.2f}'.format(r.total) }}</td></tr>
+          {% else %}
+          <tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:20px">No income recorded this financial year yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Expense breakdown -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title">Expenses — by Category</span>
+        <span class="badge badge-red">A$ {{ '{:,.2f}'.format(total_expense_fy) }} total</span>
+      </div>
+      <table class="tax-table">
+        <thead><tr><th>Category</th><th style="text-align:right">Transactions</th><th style="text-align:right">Total</th></tr></thead>
+        <tbody>
+          {% for r in expense_rows %}
+          <tr><td>{{ r.category }}</td><td style="text-align:right">{{ r.n }}</td><td style="text-align:right;font-weight:600">A$ {{ '{:,.2f}'.format(r.total) }}</td></tr>
+          {% else %}
+          <tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:20px">No expenses recorded this financial year yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="text-xs mt-2" style="color:var(--text-muted)">Useful as a deduction worksheet — confirm what's actually deductible with your accountant.</p>
+    </div>
+
+    <!-- Net position -->
+    <div class="card mb-4" style="padding:16px 20px">
+      <div class="card-header"><span class="card-title">Net Position — FY {{ fy_label }}</span></div>
+      <div class="summary-row" style="display:flex;justify-content:space-between;padding:6px 0"><span>Total Income</span><span class="text-green" style="font-weight:700">A$ {{ '{:,.2f}'.format(total_income_fy) }}</span></div>
+      <div class="summary-row" style="display:flex;justify-content:space-between;padding:6px 0"><span>Total Expenses</span><span class="text-red" style="font-weight:700">A$ {{ '{:,.2f}'.format(total_expense_fy) }}</span></div>
+      <div class="summary-row" style="display:flex;justify-content:space-between;padding:8px 0 0;border-top:2px solid var(--border);margin-top:4px"><span style="font-weight:700">Net</span><span style="font-weight:800" class="{{ 'text-green' if net_fy >= 0 else 'text-red' }}">{{ '+' if net_fy >= 0 else '' }}A$ {{ '{:,.2f}'.format(net_fy) }}</span></div>
+    </div>
+
+    <!-- Investments snapshot -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title">Investments — End of Period Snapshot</span>
+        <a href="/investments" class="btn btn-ghost btn-sm">View All</a>
+      </div>
+      <table class="tax-table">
+        <thead><tr><th>Name</th><th>Type</th><th>Country</th><th style="text-align:right">Cost Basis</th><th style="text-align:right">Current Value</th><th style="text-align:right">Gain/Loss</th></tr></thead>
+        <tbody>
+          {% for inv in investments %}
+          {% set gain = inv.current_value - inv.cost_basis %}
+          <tr>
+            <td>{{ inv.name }}{% if inv.ticker %} <span style="color:var(--primary);font-size:.7rem">({{ inv.ticker }})</span>{% endif %}</td>
+            <td>{{ inv.inv_type }}</td>
+            <td>{{ inv.country }}</td>
+            <td style="text-align:right">{{ inv.currency }} {{ '{:,.2f}'.format(inv.cost_basis) }}</td>
+            <td style="text-align:right;font-weight:600">{{ inv.currency }} {{ '{:,.2f}'.format(inv.current_value) }}</td>
+            <td style="text-align:right" class="{{ 'text-green' if gain >= 0 else 'text-red' }}">{{ '+' if gain >= 0 else '' }}{{ inv.currency }} {{ '{:,.2f}'.format(gain) }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px">No investments tracked yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="text-xs mt-2" style="color:var(--text-muted)">Relevant for capital gains / dividend discussions with your accountant. Figures are current snapshots, not FY-start vs FY-end deltas.</p>
+    </div>
+
+    <!-- US / Foreign Shares — Tax Treatment -->
+    {% set ns_us = namespace(count=0) %}
+    {% for inv in investments %}{% if inv.country == 'USA' %}{% set ns_us.count = ns_us.count + 1 %}{% endif %}{% endfor %}
+    {% if ns_us.count > 0 %}
+    <div class="card mb-4" style="border-left:3px solid #7c75f5">
+      <div class="card-header">
+        <span class="card-title">US / Foreign Shares — Tax Treatment</span>
+        <span class="badge badge-blue">{{ ns_us.count }} holding{{ 's' if ns_us.count != 1 }}</span>
+      </div>
+      <table class="tax-table">
+        <thead><tr><th>Name</th><th style="text-align:right">Cost Basis</th><th style="text-align:right">Current Value</th><th style="text-align:right">Unrealised Gain</th></tr></thead>
+        <tbody>
+          {% for inv in investments %}
+          {% if inv.country == 'USA' %}
+          {% set gain = inv.current_value - inv.cost_basis %}
+          <tr>
+            <td>{{ inv.name }}{% if inv.ticker %} <span style="color:var(--primary);font-size:.7rem">({{ inv.ticker }})</span>{% endif %}</td>
+            <td style="text-align:right">USD {{ '{:,.2f}'.format(inv.cost_basis) }}</td>
+            <td style="text-align:right;font-weight:600">USD {{ '{:,.2f}'.format(inv.current_value) }}</td>
+            <td style="text-align:right" class="{{ 'text-green' if gain >= 0 else 'text-red' }}">{{ '+' if gain >= 0 else '' }}USD {{ '{:,.2f}'.format(gain) }}</td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+      <div style="margin-top:14px;padding:12px 14px;background:var(--border-light);border-radius:var(--radius-xs);font-size:.78rem;color:var(--text-secondary);line-height:1.7">
+        <strong style="color:var(--text)">How the ATO treats this — general notes, not advice:</strong>
+        <ul style="margin:8px 0 0;padding-left:18px">
+          <li><strong>Capital gains:</strong> the same 50% CGT discount applies to US shares as Australian shares, as long as you've held them 12+ months as an Australian tax resident.</li>
+          <li><strong>Dividends:</strong> the full (grossed-up) dividend — including any US tax withheld — must be declared as assessable income, converted to AUD.</li>
+          <li><strong>Withholding rate:</strong> under the Australia–US tax treaty, US withholding on dividends is capped at 15% if a W-8BEN is on file with your broker; without one, the default is 30%.</li>
+          <li><strong>No separate return:</strong> US tax withheld isn't a separate tax lodgment — you claim it back as a Foreign Income Tax Offset (FITO) within your one Australian return.</li>
+        </ul>
+        <p style="margin:8px 0 0">Source: <a href="https://www.ato.gov.au/individuals-and-families/income-deductions-offsets-and-records/tax-offsets/claiming-a-foreign-income-tax-offset" target="_blank" style="color:var(--primary)">ATO — Claiming a foreign income tax offset</a>. General information only, not personalised tax advice — confirm your figures with a registered tax agent.</p>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Liabilities snapshot -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title">Liabilities — Current Snapshot</span>
+        <a href="/liabilities" class="btn btn-ghost btn-sm">View All</a>
+      </div>
+      <table class="tax-table">
+        <thead><tr><th>Name</th><th>Type</th><th style="text-align:right">Amount</th><th style="text-align:right">Interest Rate</th></tr></thead>
+        <tbody>
+          {% for l in liabilities %}
+          <tr>
+            <td>{{ l.name }}</td>
+            <td>{{ l.liab_type }}</td>
+            <td style="text-align:right;font-weight:600">{{ l.currency }} {{ '{:,.2f}'.format(l.amount) }}</td>
+            <td style="text-align:right">{{ l.interest_rate if l.interest_rate else '—' }}{% if l.interest_rate %}%{% endif %}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px">No liabilities tracked yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="text-xs mt-2" style="color:var(--text-muted)">Interest on some loans may be deductible depending on purpose — confirm with your accountant.</p>
+    </div>
+  </div>
+
+  <!-- ══ PREVIOUS YEARS ══ -->
+  <div id="tax-panel-previous" class="tax-panel hidden">
+    <div class="card mb-4">
+      <div class="card-header"><span class="card-title">Previous Financial Years</span></div>
+      <p class="text-xs mb-3" style="color:var(--text-muted);line-height:1.6">This app only auto-tracks the current financial year. For earlier years, record finalised figures, accountant notes, or lodgment references manually below.</p>
+      <div class="mb-3">
+        <label>Select Financial Year</label>
+        <select id="tax-fy-select" onchange="loadTaxNotes()" style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);padding:9px 12px;font-size:.84rem"></select>
+      </div>
+      <div class="mb-3">
+        <label>Notes for this Financial Year</label>
+        <textarea id="tax-fy-notes" rows="10" style="width:100%;resize:vertical;font-family:inherit;font-size:.85rem;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--card-bg);color:var(--text)" placeholder="e.g. Lodged via accountant on 12 Oct 2025. Total income $X, total deductions $Y, refund $Z. Reference: ..."></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="saveTaxNotes()">Save Notes</button>
+      <span id="tax-notes-msg" class="text-xs" style="margin-left:10px;color:var(--text-muted)"></span>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CURRENT_FY_LABEL = {{ fy_label|tojson }};
+let _taxNotes = {{ tax_notes|tojson }};
+
+function showTaxTab(tab,btn){
+  document.querySelectorAll('.tax-panel').forEach(p=>p.classList.add('hidden'));
+  document.getElementById('tax-panel-'+tab).classList.remove('hidden');
+  document.querySelectorAll('.tax-tab').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  if(tab==='previous') initPreviousYears();
+}
+
+function fyLabelsBack(n){
+  const startYear = parseInt(CURRENT_FY_LABEL.split('-')[0],10);
+  const labels=[];
+  for(let i=1;i<=n;i++){
+    const y = startYear - i;
+    labels.push(`${y}-${String(y+1).slice(2)}`);
+  }
+  return labels;
+}
+
+let _previousInit=false;
+function initPreviousYears(){
+  if(_previousInit) return;
+  _previousInit=true;
+  const sel = document.getElementById('tax-fy-select');
+  sel.innerHTML = fyLabelsBack(8).map(l=>`<option value="${l}">FY ${l}</option>`).join('');
+  loadTaxNotes();
+}
+
+async function refreshTaxNotes(){
+  try{
+    const d = await fetch('/api/tax/notes').then(r=>r.json());
+    if(d.ok) _taxNotes = d.data;
+  }catch{}
+}
+
+async function loadTaxNotes(){
+  await refreshTaxNotes();
+  const fy = document.getElementById('tax-fy-select').value;
+  document.getElementById('tax-fy-notes').value = _taxNotes[fy] || '';
+  document.getElementById('tax-notes-msg').textContent='';
+}
+
+async function saveTaxNotes(){
+  const fy = document.getElementById('tax-fy-select').value;
+  const notes = document.getElementById('tax-fy-notes').value;
+  const msg = document.getElementById('tax-notes-msg');
+  msg.textContent='Saving…';
+  try{
+    const d = await fetch('/api/tax/notes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fy,notes})}).then(r=>r.json());
+    if(d.ok){_taxNotes[fy]=notes;msg.textContent='Saved ✓';showToast('Notes saved','success','✓')}
+    else{msg.textContent=d.error||'Failed'}
+  }catch(e){msg.textContent='Network error'}
+}
+</script>
+{% endblock %}

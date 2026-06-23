@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#1565c0">
+<title>Sign in — Finance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%231565c0'/%3E%3Ctext x='50' y='74' font-family='Inter,Arial' font-size='62' font-weight='800' text-anchor='middle' fill='white'%3E%24%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#f0f2f5;
+  --card-bg:#ffffff;
+  --primary:#1565c0;
+  --primary-light:#1976d2;
+  --primary-dim:rgba(21,101,192,.08);
+  --red:#c62828;
+  --red-dim:rgba(229,57,53,.1);
+  --text:#212121;
+  --text-secondary:#616161;
+  --text-muted:#9e9e9e;
+  --border:#e0e0e0;
+  --shadow-md:0 2px 8px rgba(0,0,0,.1),0 1px 3px rgba(0,0,0,.06);
+  --radius:10px;
+  --radius-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+body{
+  font-family:'Inter',system-ui,sans-serif;
+  background:linear-gradient(160deg,var(--primary) 0%,var(--primary-light) 45%,var(--bg) 45%);
+  color:var(--text);
+  min-height:100dvh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+}
+.login-wrap{
+  display:flex;
+  gap:30px;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  max-width:760px;
+  flex-wrap:wrap;
+}
+.login-card{
+  width:100%;
+  max-width:380px;
+  background:var(--card-bg);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow-md);
+  padding:32px 28px;
+}
+.demo-panel{
+  flex:1 1 260px;
+  max-width:300px;
+  text-align:center;
+  padding:8px 10px;
+  color:#fff;
+  order:1;
+}
+.login-card{order:2}
+.demo-art{margin-bottom:14px;display:flex;justify-content:center}
+.demo-art svg{filter:drop-shadow(0 6px 14px rgba(0,0,0,.18))}
+.demo-panel h2{font-size:1.1rem;font-weight:700;margin-bottom:8px;color:#fff}
+.demo-panel p{font-size:.8rem;line-height:1.55;color:rgba(255,255,255,.85);margin-bottom:18px}
+.demo-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  width:100%;
+  max-width:250px;
+  padding:13px 18px;
+  background:linear-gradient(135deg,#ffb300,#f4511e);
+  color:#fff;
+  border-radius:999px;
+  font-size:.88rem;
+  font-weight:700;
+  text-decoration:none;
+  box-shadow:0 4px 14px rgba(244,81,30,.45);
+  transition:transform .15s ease,box-shadow .15s ease;
+}
+.demo-btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(244,81,30,.55)}
+.demo-btn:active{transform:translateY(0) scale(.98)}
+@media (max-width:680px){
+  .demo-panel{order:2;padding-top:4px}
+  .login-card{order:1}
+}
+.login-logo{display:flex;align-items:center;gap:10px;margin-bottom:22px}
+.login-logo-icon{width:40px;height:40px;border-radius:10px;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#fff;flex-shrink:0}
+.login-logo-text{font-size:1rem;font-weight:700;color:var(--text)}
+.login-logo-sub{font-size:.68rem;color:var(--text-muted);font-weight:500}
+h1{font-size:1.15rem;font-weight:700;margin-bottom:4px}
+.login-subtitle{font-size:.82rem;color:var(--text-secondary);margin-bottom:20px}
+.field{margin-bottom:14px}
+label{display:block;font-size:.76rem;font-weight:600;color:var(--text-secondary);margin-bottom:5px}
+input{
+  width:100%;
+  padding:11px 13px;
+  border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+  font-size:.92rem;
+  font-family:inherit;
+  color:var(--text);
+  background:#fff;
+  transition:border-color .15s ease;
+}
+input:focus{outline:none;border-color:var(--primary)}
+.pw-wrap{position:relative}
+.pw-toggle{
+  position:absolute;right:10px;top:50%;transform:translateY(-50%);
+  background:none;border:none;cursor:pointer;font-size:.78rem;color:var(--text-muted);padding:4px;
+}
+.error-box{
+  background:var(--red-dim);
+  color:var(--red);
+  font-size:.78rem;
+  font-weight:500;
+  padding:9px 12px;
+  border-radius:var(--radius-sm);
+  margin-bottom:14px;
+}
+button.submit{
+  width:100%;
+  padding:12px;
+  background:var(--primary);
+  color:#fff;
+  border:none;
+  border-radius:var(--radius-sm);
+  font-size:.9rem;
+  font-weight:600;
+  font-family:inherit;
+  cursor:pointer;
+  margin-top:6px;
+  transition:background .15s ease;
+}
+button.submit:hover{background:var(--primary-light)}
+button.submit:active{transform:scale(.99)}
+button.submit:disabled{background:var(--text-muted);cursor:not-allowed}
+.login-footer{margin-top:18px;text-align:center;font-size:.68rem;color:var(--text-muted)}
+@media (max-width:420px){
+  .login-card{padding:26px 20px}
+}
+</style>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="demo-panel">
+    <div class="demo-art">
+      <svg viewBox="0 0 200 150" width="150" height="112" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="coinGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#ffb300"/>
+            <stop offset="1" stop-color="#f4511e"/>
+          </linearGradient>
+        </defs>
+        <rect x="10" y="15" width="180" height="120" rx="14" fill="rgba(255,255,255,.14)"/>
+        <rect x="10" y="15" width="180" height="120" rx="14" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
+        <rect x="34" y="92" width="18" height="30" rx="4" fill="rgba(255,255,255,.55)"/>
+        <rect x="64" y="76" width="18" height="46" rx="4" fill="rgba(255,255,255,.7)"/>
+        <rect x="94" y="60" width="18" height="62" rx="4" fill="rgba(255,255,255,.85)"/>
+        <rect x="124" y="44" width="18" height="78" rx="4" fill="#ffffff"/>
+        <polyline points="43,88 73,70 103,54 133,38" fill="none" stroke="#ffb300" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="43" cy="88" r="3.5" fill="#ffb300"/>
+        <circle cx="73" cy="70" r="3.5" fill="#ffb300"/>
+        <circle cx="103" cy="54" r="3.5" fill="#ffb300"/>
+        <circle cx="133" cy="38" r="4.5" fill="#ffb300"/>
+        <circle cx="160" cy="32" r="17" fill="url(#coinGrad)"/>
+        <text x="160" y="38" font-family="Inter,Arial" font-size="17" font-weight="800" fill="#fff" text-anchor="middle">$</text>
+      </svg>
+    </div>
+    <h2 style="color:#000;font-weight:800">New here?</h2>
+    <p style="color:#000;font-weight:600">Click to see a demo of our Personal Finance Hub — a full dashboard with sample data, no account needed.</p>
+    <a href="/demo" class="demo-btn">💰 View Live Demo</a>
+  </div>
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">$</div>
+      <div>
+        <div class="login-logo-text">Personal Finance Hub</div>
+        <div class="login-logo-sub">Private household dashboard</div>
+      </div>
+    </div>
+    <h1>Sign in</h1>
+    <p class="login-subtitle">Enter your username and password to continue.</p>
+
+    {% if error %}
+    <div class="error-box">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/login" autocomplete="off">
+      <input type="hidden" name="next" value="{{ next }}">
+      <div class="field">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" required autofocus {% if locked %}disabled{% endif %}>
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <div class="pw-wrap">
+          <input type="password" id="password" name="password" autocomplete="current-password" required {% if locked %}disabled{% endif %}>
+          <button type="button" class="pw-toggle" onclick="togglePw()" id="pwToggleBtn">Show</button>
+        </div>
+      </div>
+      <button type="submit" class="submit" {% if locked %}disabled id="submitBtn"{% endif %}>{% if locked %}Try again in <span id="cd">{{ lock_seconds }}</span>s{% else %}Sign in{% endif %}</button>
+    </form>
+
+    <div class="login-footer">Access is by invitation only — ask the admin if you need an account.</div>
+  </div>
+</div>
+<script>
+function togglePw(){
+  const i=document.getElementById('password');
+  const b=document.getElementById('pwToggleBtn');
+  if(i.type==='password'){i.type='text';b.textContent='Hide';}
+  else{i.type='password';b.textContent='Show';}
+}
+{% if locked %}
+(function(){
+  let s = {{ lock_seconds }};
+  const cd = document.getElementById('cd');
+  const btn = document.getElementById('submitBtn');
+  const t = setInterval(function(){
+    s -= 1;
+    if(s <= 0){ clearInterval(t); location.reload(); return; }
+    if(cd) cd.textContent = s;
+  }, 1000);
+})();
+{% endif %}
+</script>
+</body>
+</html>

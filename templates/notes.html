@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %} — Notes{% endblock %}
+{% block topbar_title %}Notes{% endblock %}
+
+{% block head %}
+<style>
+.notes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.note-card{border-radius:var(--radius);padding:20px;position:relative;min-height:180px;display:flex;flex-direction:column;border:1px solid var(--border);transition:var(--transition)}
+.note-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.15)}
+.note-title{font-size:1rem;font-weight:700;color:var(--text);margin-bottom:8px;outline:none;border:none;background:transparent;width:100%;padding:0}
+.note-content{font-size:.85rem;color:var(--text-secondary);line-height:1.6;flex:1;outline:none;border:none;background:transparent;width:100%;resize:none;min-height:80px;padding:0;font-family:inherit}
+.note-footer{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08)}
+.note-date{font-size:.68rem;color:var(--text-muted)}
+.note-actions{display:flex;gap:6px}
+.note-btn{width:30px;height:30px;border-radius:var(--radius-sm);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.85rem;transition:var(--transition);background:rgba(255,255,255,.06);color:var(--text-muted)}
+.note-btn:hover{background:rgba(255,255,255,.12);color:var(--text)}
+.note-btn.danger:hover{background:rgba(245,101,101,.15);color:#f56565}
+.note-btn.pin-active{background:rgba(230,81,0,.15);color:#e65100}
+.color-dot{width:18px;height:18px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:var(--transition)}
+.color-dot:hover,.color-dot.active{border-color:var(--text);transform:scale(1.15)}
+.add-note-card{border:2px dashed var(--border);border-radius:var(--radius);min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:var(--transition);color:var(--text-muted)}
+.add-note-card:hover{border-color:var(--primary);color:var(--primary);background:rgba(167,139,250,.04)}
+.add-note-icon{font-size:2rem;margin-bottom:8px}
+.add-note-text{font-size:.85rem;font-weight:600}
+.color-picker{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.note-limit{font-size:.75rem;color:var(--text-muted);text-align:center;padding:10px}
+@media(max-width:768px){.notes-grid{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+  <div>
+    <p class="text-xs text-muted" style="margin-top:4px">Quick notes — max 3 notes. Pin important ones to keep them on top.</p>
+  </div>
+  <span id="note-count" class="badge" style="font-size:.7rem;background:rgba(167,139,250,.15);color:#a78bfa">0 / 3</span>
+</div>
+
+<div id="notes-container" class="notes-grid"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const COLORS = ['#a78bfa','#f56565','#48bb78','#4299e1','#ed8936','#ecc94b','#9f7aea','#fc8181','#68d391','#63b3ed','#f6ad55','#f6e05e'];
+let _notes = [];
+
+async function loadNotes(){
+  const d = await fetch('/api/notes').then(r=>r.json());
+  if(!d.ok) return;
+  _notes = d.data;
+  renderNotes();
+}
+
+function renderNotes(){
+  const el = document.getElementById('notes-container');
+  const countEl = document.getElementById('note-count');
+  const atMax = _notes.length >= 3;
+  countEl.textContent = `${_notes.length} / 3`;
+
+  let html = '';
+  _notes.forEach(n => {
+    html += `
+    <div class="note-card" style="background:${n.color}15;border-color:${n.color}30" data-id="${n.id}">
+      <input class="note-title" value="${esc(n.title)}" placeholder="Title..." onchange="saveNote(${n.id},'title',this.value)">
+      <textarea class="note-content" placeholder="Write something..." onchange="saveNote(${n.id},'content',this.value)">${esc(n.content)}</textarea>
+      <div class="note-footer">
+        <span class="note-date">${n.pinned ? '📌 ' : ''}${n.updated || n.created}</span>
+        <div class="note-actions">
+          <button class="note-btn${n.pinned?' pin-active':''}" onclick="togglePin(${n.id})" title="${n.pinned?'Unpin':'Pin'}">📌</button>
+          <button class="note-btn" onclick="showColorPicker(${n.id})" title="Change color">🎨</button>
+          <button class="note-btn danger" onclick="deleteNote(${n.id})" title="Delete">🗑️</button>
+        </div>
+      </div>
+      <div id="colors-${n.id}" style="display:none" class="color-picker">
+        ${COLORS.map(c=>`<div class="color-dot" style="background:${c}" onclick="changeColor(${n.id},'${c}')"></div>`).join('')}
+      </div>
+    </div>`;
+  });
+
+  if(!atMax){
+    html += `
+    <div class="add-note-card" onclick="addNote()">
+      <div class="add-note-icon">+</div>
+      <div class="add-note-text">New Note</div>
+    </div>`;
+  } else {
+    html += `<div class="note-limit">Max 3 notes reached. Delete one to add more.</div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+async function addNote(){
+  const d = await fetch('/api/notes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:'',content:''})}).then(r=>r.json());
+  if(!d.ok){showToast(d.error||'Failed','error','✗');return}
+  await loadNotes();
+  showToast('Note created','success','✓');
+}
+
+async function saveNote(id, field, value){
+  const body = {};
+  body[field] = value;
+  await fetch(`/api/notes/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+}
+
+async function togglePin(id){
+  const n = _notes.find(x=>x.id===id);
+  if(!n) return;
+  await fetch(`/api/notes/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({pinned:n.pinned?0:1})});
+  await loadNotes();
+}
+
+function showColorPicker(id){
+  const el = document.getElementById('colors-'+id);
+  el.style.display = el.style.display==='none' ? 'flex' : 'none';
+}
+
+async function changeColor(id, color){
+  await fetch(`/api/notes/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({color})});
+  await loadNotes();
+}
+
+async function deleteNote(id){
+  if(!confirm('Delete this note?')) return;
+  await fetch(`/api/notes/${id}`,{method:'DELETE'}).then(r=>r.json());
+  await loadNotes();
+  showToast('Note deleted','success','🗑️');
+}
+
+loadNotes();
+</script>
+{% endblock %}

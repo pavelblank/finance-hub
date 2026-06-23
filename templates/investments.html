@@ -1,0 +1,582 @@
+{% extends "base.html" %}
+{% block title %} — Investments{% endblock %}
+{% block topbar_title %}Investments{% endblock %}
+
+{% block topbar_extra %}
+<button class="topbar-btn" onclick="openAddModal()">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>
+  Add
+</button>
+{% endblock %}
+
+{% block fab_action %}
+openAddModal()
+{% endblock %}
+
+{% block head %}
+<style>
+.gain{color:var(--green);font-weight:700}
+.loss{color:var(--red);font-weight:700}
+.country-badge{font-size:.62rem;padding:2px 8px;border-radius:var(--radius-pill);font-weight:600;letter-spacing:.03em}
+.portfolio-chart{height:200px;position:relative}
+.inv-mobile-card{background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;transition:var(--transition);margin-bottom:8px;box-shadow:var(--shadow)}
+.inv-mobile-card:hover{box-shadow:var(--shadow-md);border-color:var(--primary)}
+.inv-mobile-header{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.inv-mobile-icon{width:40px;height:40px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;background:var(--primary-dim)}
+.inv-mobile-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.inv-mobile-stat{padding:8px 10px;background:var(--border-light);border-radius:var(--radius-xs)}
+.inv-mobile-stat-label{font-size:.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em}
+.inv-mobile-stat-value{font-size:.88rem;font-weight:700;color:var(--text);margin-top:2px}
+.inv-mobile-notes{font-size:.72rem;color:var(--text-secondary);margin-top:8px;padding:6px 10px;background:var(--border-light);border-radius:var(--radius-xs);border-left:2px solid var(--primary)}
+.td-actions{display:flex;gap:4px;opacity:0;transition:var(--transition)}
+tr:hover .td-actions{opacity:1}
+@media(max-width:768px){.data-table{display:none}.inv-list{display:flex;flex-direction:column;gap:8px}}
+@media(min-width:769px){.inv-list{display:none}}
+</style>
+{% endblock %}
+
+{% block content %}
+{% set ns_tot = namespace(val=0, cost=0) %}
+{% for inv in investments %}
+  {% if inv.currency == 'USD' %}
+    {% set ns_tot.val = ns_tot.val + (inv.current_value * fx_usd_aud) %}
+    {% set ns_tot.cost = ns_tot.cost + (inv.cost_basis * fx_usd_aud) %}
+  {% elif inv.currency == 'BDT' %}
+    {% set ns_tot.val = ns_tot.val + (inv.current_value * fx_bdt_aud) %}
+    {% set ns_tot.cost = ns_tot.cost + (inv.cost_basis * fx_bdt_aud) %}
+  {% else %}
+    {% set ns_tot.val = ns_tot.val + inv.current_value %}
+    {% set ns_tot.cost = ns_tot.cost + inv.cost_basis %}
+  {% endif %}
+{% endfor %}
+{% set total_val = ns_tot.val %}
+{% set total_cost = ns_tot.cost %}
+{% set total_gain = total_val - total_cost %}
+
+<div class="animate-in">
+
+  <!-- Big Add Button -->
+  <button onclick="openAddModal()" style="width:100%;margin-bottom:16px;padding:14px 20px;background:var(--primary);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-size:.95rem;font-weight:700;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 3px 10px rgba(21,101,192,.3);transition:var(--transition)" onmouseenter="this.style.background='var(--primary-light)'" onmouseleave="this.style.background='var(--primary)'">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>
+    Add New Investment
+  </button>
+
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h1 style="font-size:1.3rem;font-weight:800;letter-spacing:-.03em;color:var(--text)">Investments</h1>
+      <p class="text-secondary text-xs mt-1">{{ investments|length }} positions</p>
+      <p class="text-xs mt-1" style="color:var(--text-muted)">FX snapshot: 1 USD = A$ {{ '{:.4f}'.format(fx_usd_aud) }} · 1 AUD ≈ {{ '{:.2f}'.format(1/fx_bdt_aud) }} BDT</p>
+    </div>
+    <a href="/settings" class="btn btn-ghost btn-sm" onclick="localStorage.setItem('fin_export_tab','1')">Export</a>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="grid-3 animate-in-2 mb-4">
+    <div class="card" style="padding:16px 20px">
+      <div style="font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em">Total Portfolio Value</div>
+      <div style="font-size:1.5rem;font-weight:800;color:var(--primary);margin-top:4px">A$ {{ '{:,.2f}'.format(total_val) }}</div>
+    </div>
+    <div class="card" style="padding:16px 20px">
+      <div style="font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em">Total Cost Basis</div>
+      <div style="font-size:1.5rem;font-weight:800;color:var(--text);margin-top:4px">A$ {{ '{:,.2f}'.format(total_cost) }}</div>
+    </div>
+    <div class="card" style="padding:16px 20px">
+      <div style="font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em">Total Gain / Loss</div>
+      <div style="font-size:1.5rem;font-weight:800;margin-top:4px" class="{{ 'text-green' if total_gain >= 0 else 'text-red' }}">
+        {{ '+' if total_gain >= 0 else '' }}A$ {{ '{:,.2f}'.format(total_gain) }}
+        {% if total_cost > 0 %}<span style="font-size:.75rem;font-weight:600">({{ '{:+.1f}'.format((total_gain/total_cost)*100) }}%)</span>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Country Summary Boxes -->
+  {% set ns = namespace(aus_val=0, aus_cost=0, aus_count=0, usa_val=0, usa_cost=0, usa_count=0, bd_val=0, bd_cost=0, bd_count=0) %}
+  {% for inv in investments %}
+    {% if inv.currency == 'USD' %}{% set _cv = inv.current_value * fx_usd_aud %}{% set _cc = inv.cost_basis * fx_usd_aud %}
+    {% elif inv.currency == 'BDT' %}{% set _cv = inv.current_value * fx_bdt_aud %}{% set _cc = inv.cost_basis * fx_bdt_aud %}
+    {% else %}{% set _cv = inv.current_value %}{% set _cc = inv.cost_basis %}{% endif %}
+    {% if inv.country == 'Australia' %}
+      {% set ns.aus_val = ns.aus_val + _cv %}
+      {% set ns.aus_cost = ns.aus_cost + _cc %}
+      {% set ns.aus_count = ns.aus_count + 1 %}
+    {% elif inv.country == 'USA' %}
+      {% set ns.usa_val = ns.usa_val + _cv %}
+      {% set ns.usa_cost = ns.usa_cost + _cc %}
+      {% set ns.usa_count = ns.usa_count + 1 %}
+    {% elif inv.country == 'Bangladesh' %}
+      {% set ns.bd_val = ns.bd_val + _cv %}
+      {% set ns.bd_cost = ns.bd_cost + _cc %}
+      {% set ns.bd_count = ns.bd_count + 1 %}
+    {% endif %}
+  {% endfor %}
+
+  <div class="grid-3 animate-in-2 mb-4">
+    <!-- Australia -->
+    <div class="card" style="padding:16px 20px;border-left:3px solid #00c9a0">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:1.3rem">🇦🇺</span>
+        <div>
+          <div style="font-size:.72rem;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.05em">Australia</div>
+          <div style="font-size:.6rem;color:var(--text-muted)">{{ ns.aus_count }} position{{ 's' if ns.aus_count != 1 }}</div>
+        </div>
+      </div>
+      <div style="font-size:1.2rem;font-weight:800;color:var(--green);margin-bottom:4px">A$ {{ '{:,.2f}'.format(ns.aus_val) }}</div>
+      {% set aus_gain = ns.aus_val - ns.aus_cost %}
+      <div style="font-size:.7rem;color:var(--text-muted)">Cost: A$ {{ '{:,.2f}'.format(ns.aus_cost) }}</div>
+      <div style="font-size:.72rem;font-weight:600;margin-top:4px" class="{{ 'gain' if aus_gain >= 0 else 'loss' }}">
+        {{ '+' if aus_gain >= 0 else '' }}A$ {{ '{:,.2f}'.format(aus_gain) }}
+        {% if ns.aus_cost > 0 %}({{ '{:+.1f}'.format((aus_gain/ns.aus_cost)*100) }}%){% endif %}
+      </div>
+    </div>
+
+    <!-- USA -->
+    <div class="card" style="padding:16px 20px;border-left:3px solid #7c75f5">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:1.3rem">🇺🇸</span>
+        <div>
+          <div style="font-size:.72rem;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.05em">USA</div>
+          <div style="font-size:.6rem;color:var(--text-muted)">{{ ns.usa_count }} position{{ 's' if ns.usa_count != 1 }}</div>
+        </div>
+      </div>
+      <div style="font-size:1.2rem;font-weight:800;color:var(--primary);margin-bottom:4px">A$ {{ '{:,.2f}'.format(ns.usa_val) }}</div>
+      {% set usa_gain = ns.usa_val - ns.usa_cost %}
+      <div style="font-size:.7rem;color:var(--text-muted)">Cost: A$ {{ '{:,.2f}'.format(ns.usa_cost) }}</div>
+      <div style="font-size:.72rem;font-weight:600;margin-top:4px" class="{{ 'gain' if usa_gain >= 0 else 'loss' }}">
+        {{ '+' if usa_gain >= 0 else '' }}A$ {{ '{:,.2f}'.format(usa_gain) }}
+        {% if ns.usa_cost > 0 %}({{ '{:+.1f}'.format((usa_gain/ns.usa_cost)*100) }}%){% endif %}
+      </div>
+    </div>
+
+    <!-- Bangladesh -->
+    <div class="card" style="padding:16px 20px;border-left:3px solid #e65100">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:1.3rem">🇧🇩</span>
+        <div>
+          <div style="font-size:.72rem;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.05em">Bangladesh</div>
+          <div style="font-size:.6rem;color:var(--text-muted)">{{ ns.bd_count }} position{{ 's' if ns.bd_count != 1 }}</div>
+        </div>
+      </div>
+      <div style="font-size:1.2rem;font-weight:800;color:var(--amber);margin-bottom:4px">A$ {{ '{:,.2f}'.format(ns.bd_val) }}</div>
+      {% set bd_gain = ns.bd_val - ns.bd_cost %}
+      <div style="font-size:.7rem;color:var(--text-muted)">Cost: A$ {{ '{:,.2f}'.format(ns.bd_cost) }}</div>
+      <div style="font-size:.72rem;font-weight:600;margin-top:4px" class="{{ 'gain' if bd_gain >= 0 else 'loss' }}">
+        {{ '+' if bd_gain >= 0 else '' }}A$ {{ '{:,.2f}'.format(bd_gain) }}
+        {% if ns.bd_cost > 0 %}({{ '{:+.1f}'.format((bd_gain/ns.bd_cost)*100) }}%){% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Property Cash Flow Dashboard -->
+  {% if ns.bd_count > 0 %}
+  <div class="card animate-in-2 mb-4" style="padding:20px;border-left:3px solid #e65100">
+    <div class="card-header">
+      <span class="card-title" style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:1.2rem">🏢</span> Bangladesh Property — Cash Flow
+      </span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="badge" style="font-size:.58rem;background:rgba(230,81,0,.12);color:#e65100">BDT → AUD</span>
+        <a href="/transactions" class="btn btn-ghost btn-sm">View All</a>
+      </div>
+    </div>
+    <div class="grid-3" style="margin-top:12px">
+      <div style="padding:12px;background:rgba(0,201,160,.08);border-radius:var(--radius-sm);text-align:center">
+        <div style="font-size:.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em">Rental Income (Month)</div>
+        <div style="font-size:1.1rem;font-weight:800;color:var(--green);margin-top:4px">+BDT {{ '{:,.0f}'.format(prop_stats.rent_month_bdt) }}</div>
+        <div style="font-size:.62rem;color:var(--text-muted);margin-top:2px">(A$ {{ '{:,.2f}'.format(prop_stats.rent_month) }})</div>
+        <div style="font-size:.6rem;color:var(--text-muted);margin-top:1px">Total: BDT {{ '{:,.0f}'.format(prop_stats.rent_total_bdt) }} (A$ {{ '{:,.2f}'.format(prop_stats.rent_total) }})</div>
+      </div>
+      <div style="padding:12px;background:rgba(230,81,0,.08);border-radius:var(--radius-sm);text-align:center">
+        <div style="font-size:.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em">Maintenance (Month)</div>
+        <div style="font-size:1.1rem;font-weight:800;color:var(--amber);margin-top:4px">-BDT {{ '{:,.0f}'.format(prop_stats.maint_month_bdt) }}</div>
+        <div style="font-size:.62rem;color:var(--text-muted);margin-top:2px">(A$ {{ '{:,.2f}'.format(prop_stats.maint_month) }})</div>
+        <div style="font-size:.6rem;color:var(--text-muted);margin-top:1px">Total: BDT {{ '{:,.0f}'.format(prop_stats.maint_total_bdt) }} (A$ {{ '{:,.2f}'.format(prop_stats.maint_total) }})</div>
+      </div>
+      <div style="padding:12px;background:rgba(124,117,245,.08);border-radius:var(--radius-sm);text-align:center">
+        <div style="font-size:.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em">Net Cash Flow (Month)</div>
+        {% set net_month_bdt = prop_stats.rent_month_bdt - prop_stats.maint_month_bdt %}
+        {% set net_month = prop_stats.rent_month - prop_stats.maint_month %}
+        <div style="font-size:1.1rem;font-weight:800;margin-top:4px" class="{{ 'gain' if net_month >= 0 else 'loss' }}">{{ '+' if net_month >= 0 else '' }}BDT {{ '{:,.0f}'.format(net_month_bdt) }}</div>
+        <div style="font-size:.62rem;color:var(--text-muted);margin-top:2px">(A$ {{ '{:,.2f}'.format(net_month) }})</div>
+        <div style="font-size:.6rem;color:var(--text-muted);margin-top:1px">Repairs: BDT {{ '{:,.0f}'.format(prop_stats.repair_total_bdt) }} (A$ {{ '{:,.2f}'.format(prop_stats.repair_total) }})</div>
+      </div>
+    </div>
+    <div style="margin-top:12px;padding:10px 14px;background:var(--border-light);border-radius:var(--radius-xs);font-size:.72rem;color:var(--text-secondary)">
+      <strong>How to track:</strong> Add transactions using <span class="badge badge-blue" style="font-size:.6rem">Rental Income</span> for rent received,
+      <span class="badge" style="font-size:.6rem;background:rgba(230,81,0,.15);color:#e65100">Property Maintenance</span> for monthly costs,
+      <span class="badge" style="font-size:.6rem;background:rgba(230,81,0,.15);color:#e65100">Property Repair</span> for occasional repairs.
+      All amounts entered in BDT — AUD converted automatically.
+    </div>
+
+    <!-- Future Property Costs -->
+    {% if prop_future %}
+    <div style="margin-top:14px;padding:14px 16px;background:rgba(255,152,0,.06);border:1px dashed rgba(255,152,0,.3);border-radius:var(--radius-sm)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:.9rem">📅</span>
+          <span style="font-size:.78rem;font-weight:700;color:var(--amber)">Upcoming Property Costs</span>
+          <span class="badge" style="background:rgba(255,152,0,.15);color:#e65100;font-size:.6rem">{{ prop_stats.future_count }}</span>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:.85rem;font-weight:800;color:var(--amber)">-BDT {{ '{:,.0f}'.format(prop_stats.future_total_bdt) }}</div>
+          <div style="font-size:.6rem;color:var(--text-muted)">(A$ {{ '{:,.2f}'.format(prop_stats.future_total) }})</div>
+        </div>
+      </div>
+      {% for t in prop_future %}
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;{% if not loop.last %}border-bottom:1px solid rgba(255,152,0,.1);{% endif %}border-radius:var(--radius-xs)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:.68rem;font-weight:600;color:var(--amber);min-width:70px">{{ t.date }}</span>
+          <span style="font-size:.78rem;color:var(--text)">{{ t.description or t.category }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="badge" style="font-size:.58rem;background:rgba(230,81,0,.1);color:#e65100">{{ t.category }}</span>
+          <div style="text-align:right">
+            <span style="font-size:.82rem;font-weight:700;color:var(--red)">-BDT {{ '{:,.0f}'.format(t.amount) }}</span>
+            <div style="font-size:.56rem;color:var(--text-muted)">(A$ {{ '{:,.2f}'.format(t.amount * fx_bdt_aud) }})</div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Portfolio Chart -->
+  <div class="card animate-in-2 mb-4" style="padding:20px">
+    <div class="card-header">
+      <span class="card-title">Portfolio Breakdown</span>
+      <span class="badge badge-green">By Type</span>
+    </div>
+    <div class="portfolio-chart"><canvas id="chart-portfolio"></canvas></div>
+  </div>
+
+  <!-- Desktop Table -->
+  <div class="card animate-in-3" style="padding:0;overflow:hidden">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Name / Ticker</th><th>Type</th><th>Country</th>
+          <th style="text-align:right">Units</th>
+          <th style="text-align:right">Cost Basis</th>
+          <th style="text-align:right">Current Value</th>
+          <th style="text-align:right">Gain / Loss</th>
+          <th style="text-align:right">Return %</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inv in investments %}
+        {% if inv.currency == 'USD' %}
+          {% set aud_val = inv.current_value * fx_usd_aud %}
+          {% set aud_cost = inv.cost_basis * fx_usd_aud %}
+        {% elif inv.currency == 'BDT' %}
+          {% set aud_val = inv.current_value * fx_bdt_aud %}
+          {% set aud_cost = inv.cost_basis * fx_bdt_aud %}
+        {% else %}
+          {% set aud_val = inv.current_value %}
+          {% set aud_cost = inv.cost_basis %}
+        {% endif %}
+        {% set gain = aud_val - aud_cost %}
+        {% set pct = (gain / aud_cost * 100) if aud_cost > 0 else 0 %}
+        {% set ns_owner = namespace(label='🏠 Shared') %}
+        {% for u in users %}{% if u.id == inv.user_id %}{% set ns_owner.label = u.emoji + ' ' + u.name %}{% endif %}{% endfor %}
+        <tr data-id="{{ inv.id }}" data-name="{{ inv.name }}" data-ticker="{{ inv.ticker }}"
+            data-type="{{ inv.inv_type }}" data-units="{{ inv.units }}" data-cost="{{ inv.cost_basis }}"
+            data-val="{{ inv.current_value }}" data-currency="{{ inv.currency }}"
+            data-country="{{ inv.country }}" data-notes="{{ inv.notes }}" data-owner="{{ inv.user_id if inv.user_id is not none else 0 }}">
+          <td>
+            <div style="font-weight:600;color:var(--text)">{{ inv.name }}</div>
+            {% if inv.ticker %}<div style="font-size:.68rem;color:var(--primary);font-family:monospace">{{ inv.ticker }}</div>{% endif %}
+            <div style="font-size:.62rem;color:var(--text-muted);margin-top:2px">{{ ns_owner.label }}</div>
+          </td>
+          <td><span class="badge badge-blue" style="font-size:.62rem">{{ inv.inv_type }}</span></td>
+          <td>
+            <span class="country-badge" style="background:{% if inv.country=='Australia' %}var(--green-dim);color:var(--green){% elif inv.country=='USA' %}var(--primary-dim);color:var(--primary){% else %}rgba(230,81,0,.1);color:var(--amber){% endif %}">
+              {% if inv.country=='Australia' %}🇦🇺{% elif inv.country=='USA' %}🇺🇸{% elif inv.country=='Bangladesh' %}🇧🇩{% else %}🌍{% endif %}
+              {{ inv.country }}
+            </span>
+          </td>
+          <td style="text-align:right;font-size:.8rem">{{ '{:,.4f}'.format(inv.units) if inv.units else '—' }}</td>
+          <td style="text-align:right">
+            A$ {{ '{:,.2f}'.format(aud_cost) }}
+            {% if inv.currency != 'AUD' %}<div style="font-size:.6rem;color:var(--text-muted)">{{ inv.currency }} {{ '{:,.0f}'.format(inv.cost_basis) }}</div>{% endif %}
+          </td>
+          <td style="text-align:right;font-weight:600;color:var(--text)">
+            A$ {{ '{:,.2f}'.format(aud_val) }}
+            {% if inv.currency != 'AUD' %}<div style="font-size:.6rem;color:var(--text-muted)">{{ inv.currency }} {{ '{:,.0f}'.format(inv.current_value) }}</div>{% endif %}
+          </td>
+          <td style="text-align:right" class="{{ 'gain' if gain >= 0 else 'loss' }}">
+            {{ '+' if gain >= 0 else '' }}A$ {{ '{:,.2f}'.format(gain) }}
+          </td>
+          <td style="text-align:right" class="{{ 'gain' if pct >= 0 else 'loss' }}">{{ '{:+.1f}'.format(pct) }}%</td>
+          <td>
+            <div class="td-actions flex gap-1" style="opacity:0;transition:var(--transition)">
+              <button class="btn btn-ghost btn-sm btn-icon" onclick="editInv(this.closest('tr'))" title="Edit">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+              <button class="btn btn-danger btn-sm btn-icon" onclick="deleteInv({{ inv.id }},this.closest('tr'))" title="Delete">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">No investments yet. <a href="#" onclick="openAddModal();return false" style="color:var(--primary)">Add one!</a></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile Card List -->
+  <div class="inv-list animate-in-3" id="inv-mobile-list">
+    {% for inv in investments %}
+    {% if inv.currency == 'USD' %}
+      {% set aud_val_m = inv.current_value * fx_usd_aud %}
+      {% set aud_cost_m = inv.cost_basis * fx_usd_aud %}
+    {% elif inv.currency == 'BDT' %}
+      {% set aud_val_m = inv.current_value * fx_bdt_aud %}
+      {% set aud_cost_m = inv.cost_basis * fx_bdt_aud %}
+    {% else %}
+      {% set aud_val_m = inv.current_value %}
+      {% set aud_cost_m = inv.cost_basis %}
+    {% endif %}
+    {% set gain = aud_val_m - aud_cost_m %}
+    {% set pct = (gain / aud_cost_m * 100) if aud_cost_m > 0 else 0 %}
+    {% set ns_owner_m = namespace(label='🏠 Shared') %}
+    {% for u in users %}{% if u.id == inv.user_id %}{% set ns_owner_m.label = u.emoji + ' ' + u.name %}{% endif %}{% endfor %}
+    <div class="inv-mobile-card" data-id="{{ inv.id }}" data-name="{{ inv.name }}" data-ticker="{{ inv.ticker }}"
+         data-type="{{ inv.inv_type }}" data-units="{{ inv.units }}" data-cost="{{ inv.cost_basis }}"
+         data-val="{{ inv.current_value }}" data-currency="{{ inv.currency }}"
+         data-country="{{ inv.country }}" data-notes="{{ inv.notes }}" data-owner="{{ inv.user_id if inv.user_id is not none else 0 }}"
+         onclick="editInvFast(this)">
+      <div class="inv-mobile-header">
+        <div class="inv-mobile-icon" style="background:{% if inv.country=='Australia' %}var(--green-dim){% elif inv.country=='USA' %}var(--primary-dim){% else %}rgba(230,81,0,.1){% endif %}">
+          {% if inv.country=='Australia' %}🇦🇺{% elif inv.country=='USA' %}🇺🇸{% elif inv.country=='Bangladesh' %}🇧🇩{% else %}🌍{% endif %}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;color:var(--text)">{{ inv.name }}</div>
+          {% if inv.ticker %}<div style="font-size:.68rem;color:var(--primary);font-family:monospace">{{ inv.ticker }}</div>{% endif %}
+          <div style="font-size:.62rem;color:var(--text-muted);margin-top:1px">{{ ns_owner_m.label }}</div>
+        </div>
+        <div class="gain" style="font-size:.9rem">+{{ '{:.1f}'.format(pct) }}%</div>
+      </div>
+      <div class="inv-mobile-stats">
+        <div class="inv-mobile-stat">
+          <div class="inv-mobile-stat-label">Current Value</div>
+          <div class="inv-mobile-stat-value">A$ {{ '{:,.2f}'.format(aud_val_m) }}</div>
+          {% if inv.currency != 'AUD' %}<div style="font-size:.6rem;color:var(--text-muted)">{{ inv.currency }} {{ '{:,.0f}'.format(inv.current_value) }}</div>{% endif %}
+        </div>
+        <div class="inv-mobile-stat">
+          <div class="inv-mobile-stat-label">Cost Basis</div>
+          <div class="inv-mobile-stat-value" style="color:var(--text-secondary)">A$ {{ '{:,.2f}'.format(aud_cost_m) }}</div>
+          {% if inv.currency != 'AUD' %}<div style="font-size:.6rem;color:var(--text-muted)">{{ inv.currency }} {{ '{:,.0f}'.format(inv.cost_basis) }}</div>{% endif %}
+        </div>
+        <div class="inv-mobile-stat">
+          <div class="inv-mobile-stat-label">Gain / Loss</div>
+          <div class="inv-mobile-stat-value {{ 'gain' if gain >= 0 else 'loss' }}">{{ '+' if gain >= 0 else '' }}A$ {{ '{:,.2f}'.format(gain) }}</div>
+        </div>
+        <div class="inv-mobile-stat">
+          <div class="inv-mobile-stat-label">Type</div>
+          <div class="inv-mobile-stat-value" style="font-size:.75rem"><span class="badge badge-blue">{{ inv.inv_type }}</span></div>
+        </div>
+      </div>
+      {% if inv.notes %}
+      <div class="inv-mobile-notes">📝 {{ inv.notes }}</div>
+      {% endif %}
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:40px;color:var(--text-muted)">No investments yet. <a href="#" onclick="openAddModal();return false" style="color:var(--primary)">Add one!</a></div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div id="inv-modal-overlay" style="position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.65);backdrop-filter:blur(8px);display:none;align-items:flex-end;justify-content:center;padding:0">
+  <div class="modal" style="max-width:480px;width:100%">
+    <div class="modal-handle"></div>
+    <h3 id="inv-modal-title">Add Investment</h3>
+    <div style="margin-top:16px;display:flex;flex-direction:column;gap:12px">
+      <div class="grid-2">
+        <div><label>Name</label><input type="text" id="inv-name" placeholder="e.g. SCHD, CommBank NetSaver"></div>
+        <div><label>Ticker</label><input type="text" id="inv-ticker" placeholder="Optional, e.g. SCHD"></div>
+      </div>
+      <div class="grid-2">
+        <div>
+          <label>Type</label>
+          <select id="inv-type">
+            <option value="US ETF">US ETF</option>
+            <option value="Australian ETF">Australian ETF</option>
+            <option value="Property">Property</option>
+            <option value="Savings">Savings</option>
+            <option value="Fixed Deposit">Fixed Deposit</option>
+            <option value="Superannuation">Superannuation</option>
+            <option value="Crypto">Crypto</option>
+            <option value="Stock">Stock</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label>Country</label>
+          <select id="inv-country">
+            <option value="Australia">Australia</option>
+            <option value="USA">USA</option>
+            <option value="Bangladesh">Bangladesh</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div><label>Units / Quantity</label><input type="number" id="inv-units" step="any" min="0" placeholder="0.00000"></div>
+        <div>
+          <label>Currency</label>
+          <select id="inv-currency">
+            <option value="AUD">AUD</option>
+            <option value="USD">USD</option>
+            <option value="BDT">BDT</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div><label>Cost Basis</label><input type="number" id="inv-cost" step="0.01" min="0" placeholder="Total amount paid"></div>
+        <div><label>Current Value</label><input type="number" id="inv-val" step="0.01" min="0" placeholder="Current market value"></div>
+      </div>
+      <div>
+        <label>Owner</label>
+        <select id="inv-owner">
+          <option value="0">🏠 Shared / Household</option>
+          {% for u in users %}<option value="{{ u.id }}">{{ u.emoji }} {{ u.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div><label>Notes</label><textarea id="inv-notes" rows="2" placeholder="Add notes about this investment…" style="resize:vertical"></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeInvModal()">Cancel</button>
+      <button class="btn btn-primary" id="inv-save-btn" onclick="saveInv()">Save Investment</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _editInvId = null;
+document.querySelectorAll('tr').forEach(r=>{r.addEventListener('mouseenter',()=>{const a=r.querySelector('.td-actions');if(a)a.style.opacity='1'});r.addEventListener('mouseleave',()=>{const a=r.querySelector('.td-actions');if(a)a.style.opacity='0'})});
+setTimeout(()=>setupReveal(),100);
+
+// Portfolio chart
+const INV_TYPES = {{ investments|groupby('inv_type')|map('first')|list|tojson if investments else '[]' }};
+const PALETTE = ['#7c75f5','#00c9a0','#ff6090','#f5a623','#4ade80','#60a5fa','#f97316','#a78bfa'];
+
+// Group by type for chart
+const typeMap = {};
+{% for inv in investments %}
+{% if inv.inv_type not in typeMap %}
+  typeMap['{{ inv.inv_type }}'] = 0;
+{% endif %}
+{% if inv.currency == 'USD' %}
+typeMap['{{ inv.inv_type }}'] += {{ inv.current_value * fx_usd_aud }};
+{% elif inv.currency == 'BDT' %}
+typeMap['{{ inv.inv_type }}'] += {{ inv.current_value * fx_bdt_aud }};
+{% else %}
+typeMap['{{ inv.inv_type }}'] += {{ inv.current_value }};
+{% endif %}
+{% endfor %}
+
+const chartLabels = Object.keys(typeMap);
+const chartData = Object.values(typeMap);
+
+if(chartLabels.length){
+  const ctx = document.getElementById('chart-portfolio').getContext('2d');
+  new Chart(ctx, {
+    type:'doughnut',
+    data:{labels:chartLabels,datasets:[{data:chartData,backgroundColor:PALETTE.slice(0,chartLabels.length),borderColor:'rgba(13,13,26,.8)',borderWidth:3,hoverOffset:8}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',animation:{animateRotate:true,duration:1000,easing:'easeOutQuart'},plugins:{legend:{position:'right',labels:{font:{size:11},boxWidth:12,padding:12,usePointStyle:true}},tooltip:{backgroundColor:'rgba(16,16,46,.95)',borderColor:'rgba(255,255,255,.08)',borderWidth:1,cornerRadius:12,callbacks:{label:c=>c.label+': A$'+c.parsed.toLocaleString()}}}}
+  });
+}
+
+function openAddModal(){
+  _editInvId=null;
+  document.getElementById('inv-modal-title').textContent='Add Investment';
+  document.getElementById('inv-save-btn').textContent='Save Investment';
+  ['name','ticker','units','cost','val','notes'].forEach(f=>document.getElementById('inv-'+f).value='');
+  document.getElementById('inv-type').value='US ETF';
+  document.getElementById('inv-country').value='Australia';
+  document.getElementById('inv-currency').value='AUD';
+  document.getElementById('inv-owner').value='{{ current_uid if current_uid is not none else 1 }}';
+  document.getElementById('inv-modal-overlay').style.display='flex';
+  setTimeout(()=>document.getElementById('inv-name').focus(),80);
+}
+
+function editInv(row){
+  _editInvId=parseInt(row.dataset.id);
+  document.getElementById('inv-modal-title').textContent='Edit Investment';
+  document.getElementById('inv-save-btn').textContent='Update Investment';
+  document.getElementById('inv-name').value=row.dataset.name;
+  document.getElementById('inv-ticker').value=row.dataset.ticker;
+  document.getElementById('inv-type').value=row.dataset.type;
+  document.getElementById('inv-country').value=row.dataset.country;
+  document.getElementById('inv-units').value=row.dataset.units;
+  document.getElementById('inv-currency').value=row.dataset.currency;
+  document.getElementById('inv-cost').value=row.dataset.cost;
+  document.getElementById('inv-val').value=row.dataset.val;
+  document.getElementById('inv-notes').value=row.dataset.notes;
+  document.getElementById('inv-owner').value=row.dataset.owner;
+  document.getElementById('inv-modal-overlay').style.display='flex';
+}
+
+function editInvFast(card){
+  _editInvId=parseInt(card.dataset.id);
+  document.getElementById('inv-modal-title').textContent='Edit Investment';
+  document.getElementById('inv-save-btn').textContent='Update Investment';
+  document.getElementById('inv-name').value=card.dataset.name;
+  document.getElementById('inv-ticker').value=card.dataset.ticker;
+  document.getElementById('inv-type').value=card.dataset.type;
+  document.getElementById('inv-country').value=card.dataset.country;
+  document.getElementById('inv-units').value=card.dataset.units;
+  document.getElementById('inv-currency').value=card.dataset.currency;
+  document.getElementById('inv-cost').value=card.dataset.cost;
+  document.getElementById('inv-val').value=card.dataset.val;
+  document.getElementById('inv-notes').value=card.dataset.notes;
+  document.getElementById('inv-owner').value=card.dataset.owner;
+  document.getElementById('inv-modal-overlay').style.display='flex';
+}
+
+function closeInvModal(){document.getElementById('inv-modal-overlay').style.display='none'}
+document.getElementById('inv-modal-overlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeInvModal()});
+
+async function saveInv(){
+  const body={
+    name:document.getElementById('inv-name').value.trim(),
+    ticker:document.getElementById('inv-ticker').value.trim(),
+    inv_type:document.getElementById('inv-type').value,
+    country:document.getElementById('inv-country').value,
+    units:document.getElementById('inv-units').value,
+    currency:document.getElementById('inv-currency').value,
+    cost_basis:document.getElementById('inv-cost').value,
+    current_value:document.getElementById('inv-val').value,
+    user_id:document.getElementById('inv-owner').value,
+    notes:document.getElementById('inv-notes').value.trim(),
+  };
+  if(!body.name){showToast('Name is required','error','✗');return}
+  const btn=document.getElementById('inv-save-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Saving…';
+  try{
+    const url=_editInvId?`/api/investments/${_editInvId}`:'/api/investments';
+    const method=_editInvId?'PUT':'POST';
+    const d=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());
+    if(d.ok){showToast(_editInvId?'Updated!':'Investment added!','success','✓');closeInvModal();setTimeout(()=>location.reload(),500)}
+    else showToast(d.error||'Failed','error','✗');
+  }catch(e){showToast('Network error','error','✗')}
+  btn.disabled=false;btn.textContent=_editInvId?'Update Investment':'Save Investment';
+}
+
+function deleteInv(id,row){
+  showModal('Delete Investment?','<p class="text-secondary text-sm" style="margin:0">This cannot be undone.</p>',
+    [{label:'Cancel',class:'btn-ghost'},{label:'Delete',class:'btn-danger',onclick:async()=>{
+      const d=await fetch(`/api/investments/${id}`,{method:'DELETE'}).then(r=>r.json());
+      if(d.ok){row.remove();showToast('Deleted','success','🗑️')}
+      else showToast(d.error,'error','✗');
+    }}]);
+}
+</script>
+{% endblock %}

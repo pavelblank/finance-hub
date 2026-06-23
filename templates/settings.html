@@ -1,0 +1,940 @@
+{% extends "base.html" %}
+{% block title %} — Settings{% endblock %}
+{% block topbar_title %}Settings{% endblock %}
+
+{% block head %}
+<style>
+.provider-card{border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px;transition:var(--transition);background:rgba(255,255,255,.02)}
+.provider-card.enabled{border-color:rgba(124,117,245,.22);background:rgba(124,117,245,.03)}
+.toggle-wrap{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+.toggle{position:relative;width:36px;height:20px;background:rgba(255,255,255,.1);border-radius:10px;transition:var(--transition);flex-shrink:0;border:1px solid rgba(255,255,255,.12)}
+.toggle.on{background:var(--accent);border-color:transparent}
+.toggle::after{content:'';position:absolute;width:14px;height:14px;border-radius:50%;background:#fff;top:2px;left:2px;transition:var(--transition);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.toggle.on::after{transform:translateX(16px)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.form-field{display:flex;flex-direction:column;gap:4px}
+.cat-chip-list{display:flex;flex-wrap:wrap;gap:7px;min-height:36px}
+.cat-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;background:var(--primary-dim);border:1px solid var(--border);font-size:.75rem;color:var(--text);transition:var(--transition)}
+.cat-chip:hover{background:var(--hover-bg);border-color:var(--primary)}
+.cat-chip-del{cursor:pointer;opacity:.5;font-size:.8rem;line-height:1;padding:0 2px;margin-left:2px;transition:opacity .15s}
+.cat-chip-del:hover{opacity:1;color:#f56565}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in" style="max-width:720px">
+  <div style="margin-bottom:24px">
+    <h1 style="font-size:1.55rem;font-weight:800;letter-spacing:-.04em;color:#fff">Settings</h1>
+    <p class="text-secondary text-sm mt-1">Configure AI providers, timezone, and manage data exports.</p>
+  </div>
+
+  <div class="tab-bar animate-in-2" style="max-width:620px">
+    {% if current_account and current_account.is_admin %}
+    <button class="tab-btn active" data-tab="ai" onclick="showTab('ai',this)">AI Engines</button>
+    <button class="tab-btn" data-tab="users" onclick="showTab('users',this)">Users</button>
+    {% endif %}
+    <button class="tab-btn{% if not (current_account and current_account.is_admin) %} active{% endif %}" data-tab="categories" onclick="showTab('categories',this)">Categories</button>
+    <button class="tab-btn" data-tab="export" onclick="showTab('export',this)">Export Data</button>
+    <button class="tab-btn" data-tab="tz" onclick="showTab('tz',this)">Timezone</button>
+    <button class="tab-btn" data-tab="business" onclick="showTab('business',this)">Business Profile</button>
+    <button class="tab-btn" data-tab="activity" onclick="showTab('activity',this)">Activity Log</button>
+    <button class="tab-btn" data-tab="account" onclick="showTab('account',this)">My Account</button>
+  </div>
+
+  <!-- ══ AI Engines ══ (admin only) -->
+  {% if current_account and current_account.is_admin %}
+  <div id="panel-ai" class="settings-panel animate-in-3">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">AI Engines</span>
+        <span class="text-xs text-muted">First enabled provider is used</span>
+      </div>
+      <p class="text-xs text-muted mb-3" style="line-height:1.6">Enable or disable AI engines. Higher priority engines are used first.</p>
+      <div id="engines-container"></div>
+      <div class="flex gap-2 mt-3">
+        <button class="btn btn-ghost btn-sm" onclick="addEngine()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>
+          Add Engine
+        </button>
+        <button class="btn btn-primary btn-sm" style="flex:1" onclick="saveAll()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
+          Save Settings
+        </button>
+      </div>
+      <p id="save-msg" class="text-xs mt-2" style="min-height:16px"></p>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ══ Users ══ (admin only) -->
+  {% if current_account and current_account.is_admin %}
+  <div id="panel-users" class="settings-panel hidden animate-in-3">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Family Members</span>
+        <span class="text-xs text-muted">Track finances per person</span>
+      </div>
+      <p class="text-xs text-muted mb-3" style="line-height:1.6">Add family members to track each person's finances separately. Set a password when creating so you can share login credentials with them.</p>
+      <div id="users-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+          <div style="flex:1;min-width:120px"><label>Name</label><input type="text" id="new-user-name" placeholder="e.g. Sarah"></div>
+          <div style="width:100px"><label>Emoji</label><select id="new-user-emoji" style="text-align:center;font-size:1.1rem;padding:8px 4px;min-height:44px">
+            <option value="👤">👤 Person</option>
+            <option value="👨">👨 Man</option>
+            <option value="👩">👩 Woman</option>
+            <option value="🧑">🧑 Person</option>
+            <option value="👦">👦 Boy</option>
+            <option value="👧">👧 Girl</option>
+            <option value="👴">👴 Elder Man</option>
+            <option value="👵">👵 Elder Woman</option>
+            <option value="👶">👶 Baby</option>
+            <option value="🧒">🧒 Child</option>
+            <option value="💼">💼 Worker</option>
+            <option value="👨‍💻">👨‍💻 Developer</option>
+            <option value="👩‍💻">👩‍💻 Developer</option>
+            <option value="👨‍🎓">👨‍🎓 Student</option>
+            <option value="👩‍🎓">👩‍🎓 Student</option>
+            <option value="🐕">🐕 Pet</option>
+            <option value="🏠">🏠 Family</option>
+          </select></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+          <div style="flex:1;min-width:160px"><label>Password <span style="font-size:.68rem;color:var(--text-muted)">(min 6 chars — share this with the user)</span></label><input type="password" id="new-user-password" placeholder="Set a login password"></div>
+          <button class="btn btn-primary btn-sm" onclick="addUser()" style="margin-bottom:1px;flex-shrink:0">+ Add User</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ══ Categories ══ -->
+  <div id="panel-categories" class="settings-panel{% if not (current_account and current_account.is_admin) %} animate-in-3{% else %} hidden animate-in-3{% endif %}">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Manage Categories</span>
+        <span class="text-xs text-muted">Income, Expense & Investment</span>
+      </div>
+      <p class="text-xs text-muted mb-4" style="line-height:1.6">Add or remove categories. New categories typed in the transaction form are added automatically.</p>
+
+      <!-- Add new category row -->
+      <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+        <input type="text" id="new-cat-name" placeholder="Category name…" style="flex:1;min-width:140px;font-size:.82rem;padding:8px 12px">
+        <select id="new-cat-type" style="min-width:140px;font-size:.82rem;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text)">
+          <option value="expense">Expense</option>
+          <option value="income">Income</option>
+          <option value="investment">Investment</option>
+        </select>
+        <select id="new-cat-icon" style="width:110px;font-size:.9rem;padding:8px 6px;text-align:center;background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text)">
+          <option value="💰">💰 Money</option>
+          <option value="💸">💸 Spending</option>
+          <option value="🏠">🏠 Home</option>
+          <option value="🛒">🛒 Groceries</option>
+          <option value="🍽️">🍽️ Food</option>
+          <option value="🚗">🚗 Car</option>
+          <option value="🚌">🚌 Transport</option>
+          <option value="💡">💡 Utilities</option>
+          <option value="🌐">🌐 Internet</option>
+          <option value="📱">📱 Phone</option>
+          <option value="💪">💪 Health</option>
+          <option value="🏥">🏥 Medical</option>
+          <option value="🛡️">🛡️ Insurance</option>
+          <option value="🎓">🎓 Education</option>
+          <option value="🐕">🐕 Pet</option>
+          <option value="👶">👶 Child</option>
+          <option value="❤️">❤️ Donation</option>
+          <option value="🎮">🎮 Entertainment</option>
+          <option value="✈️">✈️ Travel</option>
+          <option value="✈️">✈️ Holiday</option>
+          <option value="🔧">🔧 Maintenance</option>
+          <option value="🛠️">🛠️ Repair</option>
+          <option value="💼">💼 Business</option>
+          <option value="📈">📈 Investment</option>
+          <option value="🏦">🏦 Bank</option>
+          <option value="💳">💳 Card</option>
+          <option value="🎁">🎁 Gift</option>
+          <option value="🧾">🧾 Tax</option>
+          <option value="🐕">🐕 Dog</option>
+          <option value="🐱">🐱 Cat</option>
+          <option value="🏋️">🏋️ Gym</option>
+          <option value="📱">📱 Subscription</option>
+          <option value="☕">☕ Coffee</option>
+          <option value="🛒">🛒 Shopping</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="addCategory()" style="white-space:nowrap">+ Add Category</button>
+      </div>
+
+      <!-- My custom categories -->
+      <div style="margin-top:4px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="font-weight:700;color:var(--text);font-size:.88rem">My Custom Categories</span>
+          <span id="my-cat-count" class="badge badge-accent" style="font-size:.6rem">0</span>
+        </div>
+        <div id="my-cats" class="cat-chip-list"></div>
+        <p class="text-xs text-muted" style="margin-top:10px;line-height:1.6">System-wide categories (Salary, Groceries, etc.) are always available when adding transactions — no need to list them here. Add your own above and they'll appear everywhere too.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Export ══ -->
+  <div id="panel-export" class="settings-panel hidden animate-in-3">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Export Your Data</span></div>
+      <p class="text-xs text-muted mb-4" style="line-height:1.6">Select what to export, filter by category, and choose a format.</p>
+
+      <!-- Data Type -->
+      <div class="mb-3">
+        <label>Data Type</label>
+        <div class="tab-bar" style="margin-bottom:0">
+          <button class="tab-btn active" onclick="setExportType('transactions',this)">Transactions</button>
+          <button class="tab-btn" onclick="setExportType('investments',this)">Investments</button>
+          <button class="tab-btn" onclick="setExportType('accounts',this)">Accounts</button>
+        </div>
+      </div>
+
+      <!-- Filters (Transactions only) -->
+      <div id="export-tx-filters">
+        <!-- Category filter -->
+        <div class="mb-3">
+          <label>Categories (leave empty for all)</label>
+          <div id="export-cat-chips" class="cat-chip-list" style="min-height:36px;max-height:120px;overflow-y:auto"></div>
+        </div>
+        <!-- Type filter -->
+        <div class="grid-2 mb-3">
+          <div class="form-field">
+            <label>Transaction Type</label>
+            <select id="export-tx-type" style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:.82rem;padding:8px 12px">
+              <option value="">All (Income + Expenses)</option>
+              <option value="income">Income only</option>
+              <option value="expense">Expenses only</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Format</label>
+            <select id="export-format" style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:.82rem;padding:8px 12px">
+              <option value="xlsx">Excel (.xlsx)</option>
+              <option value="pdf">PDF</option>
+              <option value="csv">CSV</option>
+            </select>
+          </div>
+        </div>
+        <!-- Date range -->
+        <div class="grid-2 mb-4">
+          <div class="form-field">
+            <label>From Date</label>
+            <input type="date" id="export-date-from" style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:.82rem;padding:8px 12px">
+          </div>
+          <div class="form-field">
+            <label>To Date</label>
+            <input type="date" id="export-date-to" style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:.82rem;padding:8px 12px">
+          </div>
+        </div>
+      </div>
+
+      <!-- Format (non-transaction types) -->
+      <div id="export-other-format" class="mb-4 hidden">
+        <label>Format</label>
+        <select id="export-format-other" style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:.82rem;padding:8px 12px">
+          <option value="xlsx">Excel (.xlsx)</option>
+          <option value="csv">CSV</option>
+        </select>
+      </div>
+
+      <button class="btn btn-primary" onclick="doExport()" style="width:100%">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ Timezone ══ -->
+  <div id="panel-tz" class="settings-panel hidden animate-in-3">
+    <div class="card">
+      <div class="card-header"><span class="card-title">Clock &amp; Timezone</span></div>
+      <div style="background:rgba(124,117,245,.06);border:1px solid rgba(124,117,245,.15);border-radius:var(--radius-sm);padding:18px 20px;margin-bottom:18px;text-align:center">
+        <div id="tz-preview-time" style="font-size:2rem;font-weight:800;letter-spacing:-.04em;color:#000;font-variant-numeric:tabular-nums">--:--:--</div>
+        <div id="tz-preview-date" style="font-size:.82rem;color:var(--text-muted);margin-top:5px">---</div>
+        <div id="tz-preview-label" style="font-size:.7rem;color:var(--accent);margin-top:3px"></div>
+      </div>
+      <div class="form-field">
+        <label>Select Timezone (saved automatically)</label>
+        <select id="tz-select" onchange="applyTz(this.value)" style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);padding:10px 12px;font-size:.84rem;cursor:pointer">
+          <option value="">Browser default</option>
+          <optgroup label="Australia &amp; Pacific">
+            <option value="Australia/Sydney">Sydney / Melbourne (AEST / AEDT)</option>
+            <option value="Australia/Perth">Perth (AWST, UTC+8)</option>
+            <option value="Pacific/Auckland">Auckland (NZST / NZDT)</option>
+          </optgroup>
+          <optgroup label="Asia">
+            <option value="Asia/Dhaka">Dhaka (BST, UTC+6)</option>
+            <option value="Asia/Kolkata">Kolkata / Mumbai (IST, UTC+5:30)</option>
+            <option value="Asia/Singapore">Singapore / KL (SGT, UTC+8)</option>
+            <option value="Asia/Tokyo">Tokyo (JST, UTC+9)</option>
+            <option value="Asia/Dubai">Dubai (GST, UTC+4)</option>
+          </optgroup>
+          <optgroup label="Europe">
+            <option value="Europe/London">London (GMT / BST)</option>
+            <option value="Europe/Berlin">Berlin / Paris (CET / CEST)</option>
+          </optgroup>
+          <optgroup label="Americas">
+            <option value="America/New_York">New York (ET)</option>
+            <option value="America/Los_Angeles">Los Angeles (PT)</option>
+          </optgroup>
+          <optgroup label="UTC">
+            <option value="UTC">UTC</option>
+          </optgroup>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Business Profile ══ -->
+  <div id="panel-business" class="settings-panel hidden animate-in-3">
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title">Business Profile</span>
+        <span class="text-xs text-muted">Used on the Tax Ready page</span>
+      </div>
+      <p class="text-xs text-muted mb-3" style="line-height:1.6">TFN and businesses belong to a person, not the household — one person can run several businesses under a single TFN. Stored locally in your own database only — never sent anywhere else.</p>
+      <div class="form-field" style="max-width:280px">
+        <label>Person</label>
+        <select id="biz-person-select" onchange="loadProfile()" style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:.82rem;padding:8px 12px;width:100%"></select>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header"><span class="card-title">TFN</span></div>
+      <div style="display:flex;gap:6px;max-width:420px">
+        <input type="password" id="biz-tfn" placeholder="•••••••••" style="flex:1">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="toggleTfnVisibility()" id="biz-tfn-toggle">Show</button>
+      </div>
+      <span class="text-xs" style="color:var(--text-muted)">Hidden by default — sensitive identifier.</span><br>
+      <button class="btn btn-primary btn-sm mt-3" onclick="saveTfn()">Save TFN</button>
+      <p id="tfn-save-msg" class="text-xs mt-2" style="min-height:16px"></p>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Businesses</span>
+        <button class="btn btn-ghost btn-sm" onclick="openAddBizForm()">+ Add Business</button>
+      </div>
+      <div id="biz-list" style="display:flex;flex-direction:column;gap:8px"></div>
+      <p id="biz-empty-msg" class="text-xs text-muted" style="display:none;padding:14px 0;text-align:center">No business added yet for this person.</p>
+
+      <div id="biz-form" class="hidden" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border-light);display:flex;flex-direction:column;gap:12px;max-width:420px">
+        <div class="form-field">
+          <label>Business Name</label>
+          <input type="text" id="biz-name" placeholder="e.g. Pavel Blank Consulting">
+        </div>
+        <div class="form-field">
+          <label>ABN</label>
+          <input type="text" id="biz-abn" placeholder="11 222 333 444">
+        </div>
+        <label class="toggle-wrap">
+          <span class="toggle" id="biz-gst-toggle" onclick="document.getElementById('biz-gst').checked=!document.getElementById('biz-gst').checked;this.classList.toggle('on',document.getElementById('biz-gst').checked)"></span>
+          <input type="checkbox" id="biz-gst" style="display:none">
+          <span class="text-sm" style="color:var(--text)">GST Registered</span>
+        </label>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary btn-sm" id="biz-save-btn" onclick="saveBusiness()">Save Business</button>
+          <button class="btn btn-ghost btn-sm" onclick="closeBizForm()">Cancel</button>
+        </div>
+        <p id="profile-save-msg" class="text-xs" style="min-height:16px"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Activity Log ══ -->
+  <div id="panel-activity" class="settings-panel hidden animate-in-3">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Activity Log</span>
+        <span class="text-xs text-muted">Every add, edit and delete, tracked automatically</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-end">
+        <div class="form-field" style="min-width:160px">
+          <label>Filter by Section</label>
+          <select id="activity-filter" onchange="renderAuditLog()" style="background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text);font-size:.82rem;padding:8px 12px">
+            <option value="">All Sections</option>
+            <option value="account">Accounts</option>
+            <option value="transaction">Transactions</option>
+            <option value="investment">Investments</option>
+            <option value="liability">Liabilities</option>
+            <option value="category">Categories</option>
+            <option value="user">Users</option>
+            <option value="profile">Business Profile</option>
+            <option value="business">Businesses</option>
+          </select>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="loadAuditLog()">Refresh</button>
+      </div>
+      <div id="activity-list" style="display:flex;flex-direction:column;gap:6px;max-height:520px;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <!-- ══ My Account ══ -->
+  <div id="panel-account" class="settings-panel hidden animate-in-3">
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title">My Account</span>
+        <span class="text-xs text-muted">Signed in as {{ current_account.emoji if current_account else '' }} {{ current_account.name if current_account else '' }}</span>
+      </div>
+      <p class="text-xs text-muted mb-3" style="line-height:1.6">Change your own username or password. Your current password is always required to confirm any change.</p>
+      <div class="form-field mb-3" style="max-width:320px">
+        <label>Username</label>
+        <input type="text" id="acct-username" placeholder="username" autocomplete="username" value="{{ current_account.username if current_account else '' }}">
+      </div>
+      <div class="form-field mb-3" style="max-width:320px">
+        <label>Current Password</label>
+        <input type="password" id="acct-current-pw" placeholder="Required to save any change" autocomplete="current-password">
+      </div>
+      <div class="form-field mb-3" style="max-width:320px">
+        <label>New Password (leave blank to keep current)</label>
+        <input type="password" id="acct-new-pw" placeholder="At least 6 characters" autocomplete="new-password">
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="saveAccount()">Save Changes</button>
+      <p id="acct-save-msg" class="text-xs mt-2" style="min-height:16px"></p>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showTab(tab,btn){
+  const panel = document.getElementById('panel-'+tab);
+  if(!panel) return;
+  document.querySelectorAll('.settings-panel').forEach(p=>p.classList.add('hidden'));
+  panel.classList.remove('hidden');
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  if(tab==='tz') initTzTab();
+  if(tab==='categories') loadCategories();
+  if(tab==='export') initExportTab();
+  if(tab==='users') loadUsers();
+  if(tab==='business') loadPersonSelect();
+  if(tab==='activity') loadAuditLog();
+}
+
+let engines = {{ engines | tojson }};
+// Non-admins land on Categories by default — load it immediately
+if(!_IS_ADMIN) loadCategories();
+
+// Auto-open export tab if navigated from export button
+if(localStorage.getItem('fin_export_tab')==='1'){
+  localStorage.removeItem('fin_export_tab');
+  setTimeout(function(){ showTab('export', document.querySelector('.tab-btn[data-tab="export"]')); }, 100);
+}
+
+// Auto-open business/activity tab if navigated from another page (e.g. Tax Ready)
+if(localStorage.getItem('fin_settings_tab')){
+  const _wantTab = localStorage.getItem('fin_settings_tab');
+  localStorage.removeItem('fin_settings_tab');
+  const _key = (_wantTab==='profile') ? 'business' : _wantTab;
+  setTimeout(function(){ showTab(_key, document.querySelector('.tab-btn[data-tab="'+_key+'"]')); }, 100);
+}
+
+function render(){
+  const c=document.getElementById('engines-container');if(!c)return;c.innerHTML='';
+  engines.forEach((e,i)=>{
+    const d=document.createElement('div');
+    d.className='provider-card'+(e.enabled?' enabled':'');
+    d.innerHTML=`
+      <div class="flex items-center gap-2 mb-3">
+        <span class="badge badge-accent">P${i+1}</span>
+        <input type="text" value="${esc(e.name)}" onchange="engines[${i}].name=this.value"
+          style="flex:1;background:transparent;border:none;color:#fff;font-size:.88rem;font-weight:700;outline:none;padding:0">
+        <label class="toggle-wrap" onclick="engines[${i}].enabled=!engines[${i}].enabled;render()">
+          <span class="toggle${e.enabled?' on':''}"></span>
+          <span class="text-xs" style="color:${e.enabled?'var(--accent2)':'var(--text-muted)'};font-weight:600">${e.enabled?'ON':'OFF'}</span>
+        </label>
+        <button class="btn btn-ghost btn-sm btn-icon" style="color:var(--accent3)" onclick="removeEngine(${i})">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label>Description</label>
+          <input type="text" value="${esc(e.description||'')}" onchange="engines[${i}].description=this.value" placeholder="Purpose" style="font-size:.78rem;padding:7px 10px">
+        </div>
+        <div class="form-field">
+          <label>Model</label>
+          <input type="text" value="${esc(e.model)}" onchange="engines[${i}].model=this.value" placeholder="model-name" style="font-size:.78rem;padding:7px 10px;font-family:'JetBrains Mono',monospace">
+        </div>
+      </div>
+      <div class="form-field mb-2">
+        <label>API URL</label>
+        <input type="text" value="${esc(e.url)}" onchange="engines[${i}].url=this.value" placeholder="https://api.example.com/v1" style="font-size:.78rem;padding:7px 10px;font-family:'JetBrains Mono',monospace">
+      </div>
+      <div class="form-field">
+        <label>API Key</label>
+        <input type="password" value="${esc(e.api_key||'')}" onchange="engines[${i}].api_key=this.value"
+          ${e.is_ollama?'disabled placeholder="No key needed for Ollama"':'placeholder="sk-…"'}
+          style="font-size:.78rem;padding:7px 10px;font-family:'JetBrains Mono',monospace">
+      </div>
+    `;
+    c.appendChild(d);
+  });
+}
+
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function addEngine(){engines.push({id:'p'+Date.now(),name:'New Engine',description:'',url:'',model:'',api_key:'',enabled:true});render();showToast('Engine added','info')}
+function removeEngine(i){if(engines.length<=1){showToast('Keep at least one engine','error');return}engines.splice(i,1);render()}
+
+async function saveAll(){
+  const msg=document.getElementById('save-msg');
+  msg.innerHTML='<span class="spinner"></span> Saving…';
+  try{
+    const d=await fetch('/api/providers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({providers:engines})}).then(r=>r.json());
+    if(d.ok){showToast('Settings saved!','success','✓');msg.textContent=`${engines.length} engines configured.`;msg.style.color='var(--accent2)'}
+    else{msg.textContent=d.error;msg.style.color='var(--accent3)'}
+  }catch(e){msg.textContent=e.message;msg.style.color='var(--accent3)'}
+}
+render();
+
+// ── Categories tab ──────────────────────────────────────────────────────────
+let _allCats = [];
+
+async function loadCategories(){
+  const d = await fetch('/api/categories').then(r=>r.json());
+  if(!d.ok) return;
+  _allCats = d.data;
+  renderCats();
+}
+
+function renderCats(){
+  // Show only this user's own custom categories (shared system ones are always available everywhere)
+  const mine = _allCats.filter(c=> c.user_id !== null && c.user_id !== undefined);
+  const el = document.getElementById('my-cats');
+  const cnt = document.getElementById('my-cat-count');
+  if(!el) return;
+  cnt.textContent = mine.length;
+  if(mine.length===0){
+    el.innerHTML='<span class="text-xs text-muted" style="padding:6px 0">No custom categories yet. Add one above.</span>';
+    return;
+  }
+  const typeColors = {income:'#00c9a0', expense:'#f56565', investment:'#7c75f5'};
+  el.innerHTML = mine.map(c=>`
+    <span class="cat-chip" data-id="${c.id}">
+      ${c.icon ? `<span>${c.icon}</span>` : ''}
+      <span>${esc(c.name)}</span>
+      <span style="font-size:.65rem;opacity:.6;margin-left:2px;color:${typeColors[c.type]||'var(--text-muted)'}">${c.type}</span>
+      <span class="cat-chip-del" onclick="deleteCat(${c.id},this.closest('.cat-chip'))" title="Remove">×</span>
+    </span>`).join('');
+}
+
+async function addCategory(){
+  const name = document.getElementById('new-cat-name').value.trim();
+  const type = document.getElementById('new-cat-type').value;
+  const icon = document.getElementById('new-cat-icon').value.trim();
+  if(!name){showToast('Enter a category name','error','✗');return}
+  const d = await fetch('/api/categories',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name, type, icon})
+  }).then(r=>r.json());
+  if(d.ok){
+    document.getElementById('new-cat-name').value='';
+    document.getElementById('new-cat-icon').value='';
+    showToast(d.existing ? 'Category already exists' : `"${name}" added!`, d.existing?'info':'success','✓');
+    await loadCategories();
+  } else {
+    showToast(d.error||'Failed','error','✗');
+  }
+}
+
+async function deleteCat(id, chip){
+  const d = await fetch(`/api/categories/${id}`,{method:'DELETE'}).then(r=>r.json());
+  if(d.ok){
+    chip.remove();
+    _allCats = _allCats.filter(c=>c.id!==id);
+    renderCats();
+    showToast('Category removed','success','🗑️');
+  }
+}
+
+// Timezone tab
+let _tzTimer=null;
+function initTzTab(){
+  const saved=localStorage.getItem('fin_tz')||'';
+  const sel=document.getElementById('tz-select');
+  for(let o of sel.options){if(o.value===saved){o.selected=true;break}}
+  tickTz(saved||Intl.DateTimeFormat().resolvedOptions().timeZone);
+  if(_tzTimer)clearInterval(_tzTimer);
+  _tzTimer=setInterval(()=>tickTz(localStorage.getItem('fin_tz')||Intl.DateTimeFormat().resolvedOptions().timeZone),1000);
+}
+function tickTz(tz){
+  try{
+    const now=new Date();
+    document.getElementById('tz-preview-time').textContent=new Intl.DateTimeFormat('en-US',{hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true,timeZone:tz}).format(now);
+    document.getElementById('tz-preview-date').textContent=new Intl.DateTimeFormat('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric',timeZone:tz}).format(now);
+    document.getElementById('tz-preview-label').textContent=tz.replace(/_/g,' ');
+  }catch{}
+}
+function applyTz(val){
+  if(val)localStorage.setItem('fin_tz',val);
+  else localStorage.removeItem('fin_tz');
+  showToast('Timezone saved','success','✓');
+}
+
+// ── Users ──
+async function loadUsers(){
+  const d=await fetch('/api/users').then(r=>r.json());
+  if(!d.ok)return;
+  const el=document.getElementById('users-list');
+  if(!el)return;
+  el.innerHTML=d.data.map(u=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--card-bg)">
+      <span style="font-size:1.4rem">${u.emoji}</span>
+      <div style="flex:1">
+        <div style="font-weight:700;color:var(--text);font-size:.88rem">${esc(u.name)}</div>
+        <div style="font-size:.7rem;color:var(--text-muted)">@${esc(u.username||'')}${u.id===1?' · Primary':''}</div>
+      </div>
+      ${u.username==='demo'
+        ? `<span style="font-size:.7rem;padding:3px 8px;border-radius:10px;background:var(--primary-dim);color:var(--primary);font-weight:600">🔒 Demo</span>`
+        : `<button class="btn btn-ghost btn-sm" onclick="editUser(${u.id},'${esc(u.name)}','${u.emoji}')">Edit</button>
+      ${u.id!==1?`<button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})">Remove</button>`:''}`
+      }
+    </div>`).join('');
+}
+
+function editUser(id,name,emoji){
+  const emojiOpts=['👤','👨','👩','🧑','👦','👧','👴','👵','👶','🧒','💼','👨‍💻','👩‍💻','👨‍🎓','👩‍🎓','🐕','🏠'];
+  let html=`<div style="display:flex;flex-direction:column;gap:12px">
+    <div><label>Name</label><input type="text" id="edit-user-name" value="${esc(name)}" style="width:100%"></div>
+    <div><label>Emoji</label><select id="edit-user-emoji" style="width:100%;font-size:1.1rem;min-height:44px">
+      ${emojiOpts.map(e=>`<option value="${e}"${e===emoji?' selected':''}>${e} ${e}</option>`).join('')}
+    </select></div></div>`;
+  showModal('Edit User',html,[
+    {label:'Cancel',class:'btn-ghost'},
+    {label:'Save',class:'btn-primary',onclick:async()=>{
+      const newName=document.getElementById('edit-user-name').value.trim();
+      const newEmoji=document.getElementById('edit-user-emoji').value;
+      if(!newName){showToast('Name required','error','✗');return}
+      const d=await fetch(`/api/users/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:newName,emoji:newEmoji})}).then(r=>r.json());
+      if(d.ok){loadUsers();showToast('Updated!','success','✓')}else showToast(d.error,'error','✗');
+    }}
+  ]);
+}
+
+async function addUser(){
+  const name=document.getElementById('new-user-name').value.trim();
+  const emoji=document.getElementById('new-user-emoji').value||'👤';
+  const password=document.getElementById('new-user-password').value.trim();
+  if(!name){showToast('Enter a name','error','✗');return}
+  if(!password){showToast('Enter a password','error','✗');return}
+  const d=await fetch('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,emoji,password})}).then(r=>r.json());
+  if(d.ok){
+    document.getElementById('new-user-name').value='';
+    document.getElementById('new-user-password').value='';
+    loadUsers();
+    const uname=d.username||d.data?.username||name.toLowerCase();
+    showModal('User Created — Share These Details',`
+      <p style="font-size:.82rem;color:var(--text-muted);margin:0 0 14px">Send these login details to <strong>${esc(name)}</strong>:</p>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;font-family:monospace;font-size:.88rem;line-height:2">
+        <div><span style="color:var(--text-muted);font-size:.72rem">USERNAME</span><br><strong>${esc(uname)}</strong></div>
+        <div style="margin-top:8px"><span style="color:var(--text-muted);font-size:.72rem">PASSWORD</span><br><strong>${esc(password)}</strong></div>
+      </div>
+      <p style="font-size:.72rem;color:var(--text-muted);margin:10px 0 0">They can change their password after logging in via Settings.</p>`,
+      [{label:'Close',class:'btn-primary'}]);
+  } else showToast(d.error,'error','✗');
+}
+
+async function deleteUser(id){
+  showModal('Remove User?','<p class="text-sm text-secondary" style="margin:0">Their transactions will be reassigned to the primary user.</p>',
+    [{label:'Cancel',class:'btn-ghost'},{label:'Remove',class:'btn-danger',onclick:async()=>{
+      const d=await fetch(`/api/users/${id}`,{method:'DELETE'}).then(r=>r.json());
+      if(d.ok){loadUsers();showToast('Removed','success','🗑️')}else showToast(d.error,'error','✗');
+    }}]);
+}
+
+
+
+// ── Business Profile (per-person TFN + multiple businesses) ────────────────
+let _bizUsers = [];
+let _bizList = [];
+let _editBizId = null;
+
+async function loadPersonSelect(){
+  try{
+    const d = await fetch('/api/users').then(r=>r.json());
+    if(!d.ok) return;
+    _bizUsers = d.data || [];
+    // Non-admins only manage their own business profile - the backend already enforces
+    // this on every read/write, but the selector is narrowed too so there's nothing
+    // confusing to click. Admins keep the full household list.
+    if(!_IS_ADMIN && _SELF_UID){
+      _bizUsers = _bizUsers.filter(u=>u.id===_SELF_UID);
+    }
+    const sel = document.getElementById('biz-person-select');
+    sel.innerHTML = _bizUsers.map(u=>`<option value="${u.id}">${u.emoji} ${u.name}</option>`).join('');
+    sel.disabled = !_IS_ADMIN;
+    sel.value = (_CURR_UID && _bizUsers.some(u=>u.id===_CURR_UID)) ? _CURR_UID : (_bizUsers[0] ? _bizUsers[0].id : '');
+  }catch{}
+  loadProfile();
+}
+
+async function saveAccount(){
+  const msg = document.getElementById('acct-save-msg');
+  const username = document.getElementById('acct-username').value.trim();
+  const current_password = document.getElementById('acct-current-pw').value;
+  const new_password = document.getElementById('acct-new-pw').value;
+  if(!current_password){
+    msg.textContent = 'Enter your current password to save changes.';
+    msg.style.color = 'var(--accent3)';
+    return;
+  }
+  try{
+    const r = await fetch('/api/account', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({username, current_password, new_password})}).then(r=>r.json());
+    if(r.ok){
+      msg.textContent = 'Saved. Refreshing…';
+      msg.style.color = 'var(--accent2)';
+      document.getElementById('acct-current-pw').value = '';
+      document.getElementById('acct-new-pw').value = '';
+      setTimeout(()=>location.reload(), 700);
+    }else{
+      msg.textContent = r.error || 'Could not save changes.';
+      msg.style.color = 'var(--accent3)';
+    }
+  }catch{
+    msg.textContent = 'Could not save changes.';
+    msg.style.color = 'var(--accent3)';
+  }
+}
+
+function currentBizUid(){
+  const v = document.getElementById('biz-person-select').value;
+  return v ? parseInt(v) : null;
+}
+
+async function loadProfile(){
+  const uid = currentBizUid();
+  if(!uid) return;
+  closeBizForm();
+  try{
+    const u = _bizUsers.find(u=>u.id===uid);
+    document.getElementById('biz-tfn').value = (u && u.tfn) || '';
+  }catch{}
+  try{
+    const d = await fetch(`/api/businesses?user_id=${uid}`).then(r=>r.json());
+    _bizList = d.ok ? d.data : [];
+  }catch{
+    _bizList = [];
+  }
+  renderBizList(_bizList);
+}
+
+function toggleTfnVisibility(){
+  const f = document.getElementById('biz-tfn');
+  const btn = document.getElementById('biz-tfn-toggle');
+  const show = f.type === 'password';
+  f.type = show ? 'text' : 'password';
+  btn.textContent = show ? 'Hide' : 'Show';
+}
+
+async function saveTfn(){
+  const uid = currentBizUid();
+  if(!uid) return;
+  const msg = document.getElementById('tfn-save-msg');
+  msg.innerHTML = '<span class="spinner"></span> Saving…';
+  try{
+    const d = await fetch(`/api/users/${uid}/tfn`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({tfn:document.getElementById('biz-tfn').value.trim()})}).then(r=>r.json());
+    if(d.ok){
+      const u = _bizUsers.find(u=>u.id===uid); if(u) u.tfn = d.data ? d.data.tfn : u.tfn;
+      showToast('TFN saved','success','✓');msg.textContent='Saved.';msg.style.color='var(--accent2)';
+    } else {msg.textContent=d.error||'Failed';msg.style.color='var(--accent3)'}
+  }catch(e){msg.textContent='Network error';msg.style.color='var(--accent3)'}
+}
+
+function renderBizList(rows){
+  const list = document.getElementById('biz-list');
+  const empty = document.getElementById('biz-empty-msg');
+  if(!rows || !rows.length){
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  list.innerHTML = rows.map(b=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:var(--border-light);border-radius:var(--radius-xs)">
+      <div>
+        <div style="font-weight:600;font-size:.85rem;color:var(--text)">${esc(b.business_name)||'—'}</div>
+        <div style="font-size:.7rem;color:var(--text-muted);margin-top:2px">${b.abn?('ABN '+esc(b.abn)):'No ABN set'}${b.gst_registered?' · GST registered':''}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn btn-ghost btn-sm" onclick="editBiz(${b.id})">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteBiz(${b.id})">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openAddBizForm(){
+  _editBizId = null;
+  document.getElementById('biz-name').value='';
+  document.getElementById('biz-abn').value='';
+  document.getElementById('biz-gst').checked=false;
+  document.getElementById('biz-gst-toggle').classList.remove('on');
+  document.getElementById('biz-save-btn').textContent='Save Business';
+  document.getElementById('biz-form').classList.remove('hidden');
+  document.getElementById('profile-save-msg').textContent='';
+}
+
+function editBiz(id){
+  const b = _bizList.find(x=>x.id===id);
+  if(!b) return;
+  _editBizId = b.id;
+  document.getElementById('biz-name').value = b.business_name || '';
+  document.getElementById('biz-abn').value = b.abn || '';
+  const gst = !!b.gst_registered;
+  document.getElementById('biz-gst').checked = gst;
+  document.getElementById('biz-gst-toggle').classList.toggle('on', gst);
+  document.getElementById('biz-save-btn').textContent='Update Business';
+  document.getElementById('biz-form').classList.remove('hidden');
+  document.getElementById('profile-save-msg').textContent='';
+}
+
+function closeBizForm(){
+  document.getElementById('biz-form').classList.add('hidden');
+}
+
+async function saveBusiness(){
+  const uid = currentBizUid();
+  if(!uid) return;
+  const msg = document.getElementById('profile-save-msg');
+  const name = document.getElementById('biz-name').value.trim();
+  if(!name){msg.textContent='Business name is required';msg.style.color='var(--accent3)';return}
+  const body = {
+    business_name: name,
+    abn: document.getElementById('biz-abn').value.trim(),
+    gst_registered: document.getElementById('biz-gst').checked,
+    user_id: uid
+  };
+  msg.innerHTML = '<span class="spinner"></span> Saving…';
+  try{
+    const url = _editBizId ? `/api/businesses/${_editBizId}` : '/api/businesses';
+    const method = _editBizId ? 'PUT' : 'POST';
+    const d = await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());
+    if(d.ok){
+      showToast(_editBizId?'Business updated':'Business added','success','✓');
+      msg.textContent='Saved.';msg.style.color='var(--accent2)';
+      closeBizForm();
+      loadProfile();
+    } else {msg.textContent=d.error||'Failed';msg.style.color='var(--accent3)'}
+  }catch(e){msg.textContent='Network error';msg.style.color='var(--accent3)'}
+}
+
+function deleteBiz(id){
+  showModal('Delete Business?','<p class="text-secondary text-sm" style="margin:0">This cannot be undone.</p>',
+    [{label:'Cancel',class:'btn-ghost'},{label:'Delete',class:'btn-danger',onclick:async()=>{
+      const d = await fetch(`/api/businesses/${id}`,{method:'DELETE'}).then(r=>r.json());
+      if(d.ok){showToast('Deleted','success','🗑️');loadProfile()}
+      else showToast(d.error,'error','✗');
+    }}]);
+}
+
+// ── Activity Log ───────────────────────────────────────────────────────────
+let _auditRows = [];
+async function loadAuditLog(){
+  const el = document.getElementById('activity-list');
+  el.innerHTML = '<div class="text-xs text-muted" style="padding:10px 0">Loading…</div>';
+  try{
+    const d = await fetch('/api/audit-log?limit=200').then(r=>r.json());
+    _auditRows = d.ok ? (d.data || []) : [];
+    renderAuditLog();
+  }catch{
+    el.innerHTML = '<div class="text-xs text-muted" style="padding:10px 0">Could not load activity log.</div>';
+  }
+}
+
+function renderAuditLog(){
+  const el = document.getElementById('activity-list');
+  const filter = document.getElementById('activity-filter').value;
+  const rows = filter ? _auditRows.filter(r=>(r.entity||'')===filter) : _auditRows;
+  if(!rows.length){
+    el.innerHTML = '<div class="text-xs text-muted" style="padding:10px 0">No activity recorded yet.</div>';
+    return;
+  }
+  const actionIcon = a => a==='delete' ? '🗑️' : (a==='update' ? '✏️' : (a==='add' ? '➕' : '📝'));
+  el.innerHTML = rows.map(r=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--card-bg)">
+      <span style="font-size:1rem;flex-shrink:0">${actionIcon(r.action)}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;color:var(--text);font-size:.8rem">${escHtml(r.summary||(r.action+' '+r.entity))}</div>
+        <div style="font-size:.66rem;color:var(--text-muted);margin-top:1px">${escHtml(r.entity||'')} · ${escHtml(r.action||'')}${r.ts ? ' · '+escHtml(r.ts) : ''}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ── Export Tab ─────────────────────────────────────────────────────────────
+let _exportType = 'transactions';
+let _exportCats = [];
+
+function initExportTab(){
+  _exportType = 'transactions';
+  _exportCats = [];
+  document.querySelectorAll('#panel-export .tab-bar .tab-btn').forEach((b,i)=>{
+    b.classList.toggle('active', i===0);
+  });
+  loadExportCategories();
+  updateExportUI();
+}
+
+function setExportType(type,btn){
+  _exportType = type;
+  _exportCats = [];
+  document.querySelectorAll('#panel-export .tab-bar .tab-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  updateExportUI();
+  if(type==='transactions') loadExportCategories();
+}
+
+function updateExportUI(){
+  const isTx = _exportType === 'transactions';
+  document.getElementById('export-tx-filters').classList.toggle('hidden', !isTx);
+  document.getElementById('export-other-format').classList.toggle('hidden', isTx);
+}
+
+async function loadExportCategories(){
+  const d = await fetch('/api/categories').then(r=>r.json());
+  if(!d.ok) return;
+  const container = document.getElementById('export-cat-chips');
+  container.innerHTML = '';
+  d.data.forEach(c => {
+    const chip = document.createElement('span');
+    chip.className = 'cat-chip';
+    chip.style.cursor = 'pointer';
+    chip.innerHTML = (c.icon ? c.icon+' ' : '') + escHtml(c.name);
+    chip.onclick = function(){
+      const idx = _exportCats.indexOf(c.name);
+      if(idx >= 0){ _exportCats.splice(idx,1); chip.style.background=''; chip.style.borderColor=''; }
+      else { _exportCats.push(c.name); chip.style.background='rgba(124,117,245,.2)'; chip.style.borderColor='var(--accent)'; }
+    };
+    container.appendChild(chip);
+  });
+}
+
+function doExport(){
+  const fmt = _exportType === 'transactions'
+    ? document.getElementById('export-format').value
+    : document.getElementById('export-format-other').value;
+
+  let url = '/api/export/' + fmt + '?type=' + _exportType;
+
+  if(_exportType === 'transactions'){
+    if(_exportCats.length > 0) url += '&categories=' + encodeURIComponent(_exportCats.join(','));
+    const txType = document.getElementById('export-tx-type').value;
+    if(txType) url += '&tx_type=' + txType;
+    const dFrom = document.getElementById('export-date-from').value;
+    const dTo = document.getElementById('export-date-to').value;
+    if(dFrom) url += '&date_from=' + dFrom;
+    if(dTo) url += '&date_to=' + dTo;
+  }
+
+  window.location.href = url;
+  showToast('Exporting ' + _exportType + '...', 'info', '📦');
+}
+</script>
+{% endblock %}

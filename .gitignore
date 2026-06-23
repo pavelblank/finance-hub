@@ -1,0 +1,40 @@
+# Personal financial data — NEVER commit these
+data/finance.db
+data/secret.key
+data/chat_history.json
+data/fx_cache.json
+
+# AI provider config (contains API keys)
+data/providers.json
+
+# Logs
+*.log
+app_out.log
+app_err.log
+app_stdout.log
+app_stderr.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup copies
+*_copy.py
+*_backup.py
+synctest.txt

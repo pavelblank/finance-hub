@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %} — Accounts{% endblock %}
+{% block topbar_title %}Accounts{% endblock %}
+
+{% block topbar_extra %}
+<button class="topbar-btn" onclick="openAddModal()">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>
+  Add Account
+</button>
+{% endblock %}
+
+{% block head %}
+<style>
+.acc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:10px}
+.acc-card{background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;box-shadow:var(--shadow);transition:var(--transition)}
+.acc-card:hover{box-shadow:var(--shadow-md);border-color:var(--primary);transform:translateY(-1px)}
+</style>
+{% endblock %}
+
+{% block content %}
+{% set ns = namespace(total_aud=0) %}
+{% for acc in accounts %}
+  {% if acc.currency == 'USD' %}
+    {% set ns.total_aud = ns.total_aud + (acc.balance * fx_usd_aud) %}
+  {% elif acc.currency == 'BDT' %}
+    {% set ns.total_aud = ns.total_aud + (acc.balance * fx_bdt_aud) %}
+  {% else %}
+    {% set ns.total_aud = ns.total_aud + acc.balance %}
+  {% endif %}
+{% endfor %}
+
+<div class="animate-in">
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h1 style="font-size:1.4rem;font-weight:800;letter-spacing:-.03em;color:var(--text)">Accounts</h1>
+      <p class="text-secondary text-xs mt-1">{{ accounts|length }} accounts · AUD A$ {{ '{:,.2f}'.format(ns.total_aud) }}</p>
+      <p class="text-xs mt-1" style="color:var(--text-muted)">FX snapshot: 1 USD = A$ {{ '{:.4f}'.format(fx_usd_aud) }} · 1 AUD ≈ {{ '{:.2f}'.format(1/fx_bdt_aud) }} BDT</p>
+    </div>
+    <div class="flex gap-2">
+      <a href="/settings" class="btn btn-ghost btn-sm" onclick="localStorage.setItem('fin_export_tab','1')">Export</a>
+      <button class="btn btn-primary" onclick="openAddModal()" style="padding:8px 18px">+ Add Account</button>
+    </div>
+  </div>
+
+  <div class="acc-grid animate-in-2">
+    {% for acc in accounts %}
+    {% set flag = '🇦🇺' if acc.country=='Australia' else ('🇺🇸' if acc.country=='USA' else ('🇧🇩' if acc.country=='Bangladesh' else '🌍')) %}
+    {% set icon = '🏦' if acc.acc_type=='Checking' else ('💰' if acc.acc_type=='Savings' else ('🔒' if acc.acc_type=='Fixed Deposit' else '📈')) %}
+    <div class="acc-card reveal" style="transition-delay:{{ loop.index0 * 0.05 }}s"
+         data-id="{{ acc.id }}" data-name="{{ acc.name }}" data-type="{{ acc.acc_type }}"
+         data-bal="{{ acc.balance }}" data-currency="{{ acc.currency }}" data-country="{{ acc.country }}" data-notes="{{ acc.notes or '' }}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:1.3rem;line-height:1">{{ icon }}</span>
+          <div>
+            <div style="font-weight:700;font-size:.88rem;color:var(--text);line-height:1.2">{{ acc.name }}</div>
+            <div style="font-size:.68rem;color:var(--text-muted);margin-top:2px">{{ acc.acc_type }}</div>
+          </div>
+        </div>
+        <span style="font-size:.8rem" title="{{ acc.country }}">{{ flag }}</span>
+      </div>
+      {% if acc.currency == 'BDT' %}{% set acc_aud = acc.balance * fx_bdt_aud %}
+      {% elif acc.currency == 'USD' %}{% set acc_aud = acc.balance * fx_usd_aud %}
+      {% else %}{% set acc_aud = acc.balance %}{% endif %}
+      <div style="font-size:1.55rem;font-weight:800;letter-spacing:-.04em;color:{% if acc.balance >= 0 %}var(--green){% else %}var(--red){% endif %};line-height:1">
+        A${{ '{:,.2f}'.format(acc_aud) }}
+      </div>
+      {% if acc.currency != 'AUD' %}
+      <div style="font-size:.8rem;font-weight:600;color:var(--text-muted);margin-top:4px">
+        {{ acc.currency }} {{ '{:,.2f}'.format(acc.balance) }}
+      </div>
+      {% endif %}
+      <div style="font-size:.68rem;color:var(--text-muted);margin-top:2px">{{ acc.currency }} · {{ acc.country }}</div>
+      {% if acc.notes %}<div style="font-size:.7rem;color:var(--text-muted);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:3px 6px;background:var(--border-light);border-radius:4px">{{ acc.notes }}</div>{% endif %}
+      <div style="display:flex;gap:6px;margin-top:10px;padding-top:8px;border-top:1px solid var(--border-light)">
+        <button class="btn btn-ghost btn-sm" style="flex:1;font-size:.72rem" onclick="editAcc(this.closest('.acc-card'))">Edit</button>
+        <button class="btn btn-danger btn-sm" style="font-size:.72rem" onclick="deleteAcc({{ acc.id }},this.closest('.acc-card'))">Delete</button>
+      </div>
+    </div>
+    {% else %}
+    <div class="card" style="grid-column:1/-1;text-align:center;padding:40px">
+      <div style="font-size:2rem;opacity:.3;margin-bottom:8px">🏦</div>
+      <div class="text-muted text-sm">No accounts yet. <a href="#" onclick="openAddModal();return false" style="color:var(--primary)">Add one!</a></div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div id="acc-modal-overlay" style="position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:20px">
+  <div class="modal" style="max-width:460px">
+    <h3 id="acc-modal-title">Add Account</h3>
+    <div style="margin-top:16px;display:flex;flex-direction:column;gap:12px">
+      <div><label>Account Name</label><input type="text" id="acc-name" placeholder="e.g. CommBank NetSaver"></div>
+      <div class="grid-2">
+        <div>
+          <label>Type</label>
+          <select id="acc-type">
+            <option value="Savings">Savings</option>
+            <option value="Checking">Checking</option>
+            <option value="Fixed Deposit">Fixed Deposit</option>
+            <option value="Investment">Investment</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label>Country</label>
+          <select id="acc-country">
+            <option value="Australia">Australia</option>
+            <option value="USA">USA</option>
+            <option value="Bangladesh">Bangladesh</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div><label>Balance</label><input type="number" id="acc-bal" step="0.01" placeholder="0.00"></div>
+        <div>
+          <label>Currency</label>
+          <select id="acc-currency">
+            <option value="AUD">AUD</option>
+            <option value="USD">USD</option>
+            <option value="BDT">BDT</option>
+          </select>
+        </div>
+      </div>
+      <div><label>Notes</label><textarea id="acc-notes" rows="2" style="resize:vertical" placeholder="Optional notes…"></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeAccModal()">Cancel</button>
+      <button class="btn btn-primary" id="acc-save-btn" onclick="saveAcc()">Save Account</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _editAccId=null;
+setTimeout(()=>setupReveal(),100);
+
+function openAddModal(){
+  _editAccId=null;
+  document.getElementById('acc-modal-title').textContent='Add Account';
+  document.getElementById('acc-save-btn').textContent='Save Account';
+  document.getElementById('acc-name').value='';
+  document.getElementById('acc-type').value='Savings';
+  document.getElementById('acc-country').value='Australia';
+  document.getElementById('acc-bal').value='';
+  document.getElementById('acc-currency').value='AUD';
+  document.getElementById('acc-notes').value='';
+  document.getElementById('acc-modal-overlay').style.display='flex';
+  setTimeout(()=>document.getElementById('acc-name').focus(),80);
+}
+
+function editAcc(card){
+  _editAccId=parseInt(card.dataset.id);
+  document.getElementById('acc-modal-title').textContent='Edit Account';
+  document.getElementById('acc-save-btn').textContent='Update Account';
+  document.getElementById('acc-name').value=card.dataset.name;
+  document.getElementById('acc-type').value=card.dataset.type;
+  document.getElementById('acc-country').value=card.dataset.country;
+  document.getElementById('acc-bal').value=card.dataset.bal;
+  document.getElementById('acc-currency').value=card.dataset.currency;
+  document.getElementById('acc-notes').value=card.dataset.notes;
+  document.getElementById('acc-modal-overlay').style.display='flex';
+}
+
+function closeAccModal(){document.getElementById('acc-modal-overlay').style.display='none'}
+document.getElementById('acc-modal-overlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeAccModal()});
+
+async function saveAcc(){
+  const body={
+    name:document.getElementById('acc-name').value.trim(),
+    acc_type:document.getElementById('acc-type').value,
+    country:document.getElementById('acc-country').value,
+    balance:document.getElementById('acc-bal').value,
+    currency:document.getElementById('acc-currency').value,
+    notes:document.getElementById('acc-notes').value.trim(),
+  };
+  if(!body.name){showToast('Name is required','error','✗');return}
+  const btn=document.getElementById('acc-save-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Saving…';
+  try{
+    const url=_editAccId?`/api/accounts/${_editAccId}`:'/api/accounts';
+    const method=_editAccId?'PUT':'POST';
+    const d=await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());
+    if(d.ok){showToast(_editAccId?'Updated!':'Account added!','success','✓');closeAccModal();setTimeout(()=>location.reload(),500)}
+    else showToast(d.error||'Failed','error','✗');
+  }catch(e){showToast('Network error','error','✗')}
+  btn.disabled=false;btn.textContent=_editAccId?'Update Account':'Save Account';
+}
+
+function deleteAcc(id,card){
+  showModal('Delete Account?','<p class="text-secondary text-sm" style="margin:0">This cannot be undone.</p>',
+    [{label:'Cancel',class:'btn-ghost'},{label:'Delete',class:'btn-danger',onclick:async()=>{
+      const d=await fetch(`/api/accounts/${id}`,{method:'DELETE'}).then(r=>r.json());
+      if(d.ok){card.remove();showToast('Deleted','success','🗑️')}
+      else showToast(d.error,'error','✗');
+    }}]);
+}
+</script>
+{% endblock %}
