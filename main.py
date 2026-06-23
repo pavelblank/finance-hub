@@ -1041,6 +1041,10 @@ def index():
         users = [row_to_dict(r) for r in c.execute("SELECT id, name, emoji, color, tfn, username, is_admin FROM users ORDER BY id").fetchall()]
     return render_template("index.html", summary=summary, now=now, accounts=accounts, users=users, current_uid=uid)
 
+@app.route("/Demo")
+def demo_redirect():
+    return redirect("/")
+
 @app.route("/transactions")
 def transactions_page():
     uid = _uid()

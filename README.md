@@ -1,6 +1,6 @@
 <div align="center">
 
-# 💰 Finance Hub V1.0.0
+# 💰 Finance Hub V2.0.0
 
 **Self-hosted personal finance dashboard. Multi-currency. AI-assisted. Locally owned.**
 
